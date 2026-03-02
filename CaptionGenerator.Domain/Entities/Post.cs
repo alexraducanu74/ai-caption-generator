@@ -1,4 +1,4 @@
-﻿﻿using CaptionGenerator.Domain.Enums;
+﻿using CaptionGenerator.Domain.Enums;
 
 namespace CaptionGenerator.Domain.Entities;
 
@@ -25,7 +25,7 @@ public class Post
         };
     }
     public Guid Id { get; private set; }
-    public string Caption { get; private set; }
+    public string Caption { get; private set; } = string.Empty;
     public SocialPlatform Platform { get; private set; }
     public PostStatus Status { get; private set; }
 
