@@ -63,3 +63,4 @@ public class DeletePostCommandHandlerTests
         _repositoryMock.Verify(r => r.FindAsync(postId, It.IsAny<CancellationToken>()), Times.Once);
     }
 }
+
