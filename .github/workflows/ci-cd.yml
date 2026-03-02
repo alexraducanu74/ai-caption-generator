@@ -37,19 +37,42 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Install SonarCloud scanner
+        run: dotnet tool install --global dotnet-sonarscanner
+
+      - name: Cache SonarCloud packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
       - name: Restore dependencies
         run: dotnet restore
+
+      - name: Begin SonarCloud Analysis
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          dotnet sonarscanner begin /k:"alexraducanu74_dotnet-project" /o:"alexraducanu74" /d:sonar.projectBaseDir="${{ github.workspace }}" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" /d:sonar.coverage.exclusions="**/Tests/**,**/Migrations/**,**/Program.cs"
 
       - name: Build
         run: dotnet build --no-restore --configuration Release --no-incremental
 
       - name: Run Unit Tests
-        run: dotnet test CaptionGenerator.Tests.Unit/CaptionGenerator.Tests.Unit.csproj --no-build --configuration Release --verbosity normal --logger "trx"
+        run: dotnet test CaptionGenerator.Tests.Unit/CaptionGenerator.Tests.Unit.csproj --no-build --configuration Release --verbosity normal --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:ExcludeByAttribute="Obsolete"
 
       - name: Run Integration Tests
-        run: dotnet test CaptionGenerator.Tests.Integration/CaptionGenerator.Tests.Integration.csproj --no-build --configuration Release --verbosity normal --logger "trx"
+        run: dotnet test CaptionGenerator.Tests.Integration/CaptionGenerator.Tests.Integration.csproj --no-build --configuration Release --verbosity normal --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:ExcludeByAttribute="Obsolete"
         env:
           ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=caption_generator;Username=postgres;Password=postgres;"
+
+      - name: End SonarCloud Analysis
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
@@ -57,6 +80,13 @@ jobs:
         with:
           name: test-results
           path: '**/TestResults/'
+
+      - name: Upload Coverage Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-reports
+          path: '**/coverage.opencover.xml'
 
 
   docker-build-push:
