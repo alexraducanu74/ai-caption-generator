@@ -86,7 +86,7 @@ jobs:
         if: always()
         with:
           name: coverage-reports
-          path: '**/coverage.opencover.xml'
+          path: '**/TestResults/*.opencover.xml'
 
 
   docker-build-push:
