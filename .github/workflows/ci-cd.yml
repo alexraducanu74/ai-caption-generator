@@ -55,16 +55,15 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          dotnet sonarscanner begin /k:"alexraducanu74_dotnet-project" /o:"alexraducanu74" /d:sonar.projectBaseDir="${{ github.workspace }}" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.vscoveragexml.reportsPaths="**/TestResults/**/*.cobertura.xml" /d:sonar.coverage.exclusions="**/Tests/**,**/Migrations/**,**/Program.cs" /d:sonar.cpd.exclusions="**/Tests/**,**/Migrations/**" /d:sonar.exclusions="**/bin/**,**/obj/**"
-
+          dotnet sonarscanner begin /k:"alexraducanu74_dotnet-project" /o:"alexraducanu74" /d:sonar.projectBaseDir="${{ github.workspace }}" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths="**/TestResults/*.opencover.xml" /d:sonar.coverage.exclusions="**/Tests/**,**/Migrations/**,**/Program.cs" /d:sonar.cpd.exclusions="**/Tests/**"
       - name: Build
         run: dotnet build --no-restore --configuration Release --no-incremental
 
       - name: Run Unit Tests
-        run: dotnet test CaptionGenerator.Tests.Unit/CaptionGenerator.Tests.Unit.csproj --no-build --configuration Release --verbosity normal --logger "trx" --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+        run: dotnet test CaptionGenerator.Tests.Unit/CaptionGenerator.Tests.Unit.csproj --no-build --configuration Release --verbosity normal --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:CoverletOutput=./TestResults/unit-coverage.opencover.xml /p:ExcludeByAttribute="Obsolete"
 
       - name: Run Integration Tests
-        run: dotnet test CaptionGenerator.Tests.Integration/CaptionGenerator.Tests.Integration.csproj --no-build --configuration Release --verbosity normal --logger "trx" --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+        run: dotnet test CaptionGenerator.Tests.Integration/CaptionGenerator.Tests.Integration.csproj --no-build --configuration Release --verbosity normal --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:CoverletOutput=./TestResults/integration-coverage.opencover.xml /p:ExcludeByAttribute="Obsolete"
         env:
           ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=caption_generator;Username=postgres;Password=postgres;"
 
@@ -86,7 +85,7 @@ jobs:
         if: always()
         with:
           name: coverage-reports
-          path: '**/TestResults/**/*.cobertura.xml'
+          path: '**/TestResults/*.opencover.xml'
 
 
   docker-build-push:
@@ -120,7 +119,6 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha,prefix={{branch}}-
-
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
