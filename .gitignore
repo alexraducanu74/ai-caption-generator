@@ -1,12 +1,7 @@
-# Build output
 bin/
 obj/
-
-# Rider / VS
 .idea/
 *.suo
 *.user
 .vs/
-
-# Logs
 *.log

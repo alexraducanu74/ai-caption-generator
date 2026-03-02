@@ -82,6 +82,6 @@ public class PostsController : ControllerBase
             return NotFound(ApiResponse<object>.ErrorResponse("Post not found"));
         }
 
-        return Ok(ApiResponse<object>.SuccessResponse(null, "Post deleted successfully"));
+        return Ok(ApiResponse<object>.SuccessResponse(new { }, "Post deleted successfully"));
     }
 }

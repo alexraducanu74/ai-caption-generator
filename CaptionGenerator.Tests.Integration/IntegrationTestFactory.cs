@@ -45,12 +45,15 @@ public class IntegrationTestFactory : WebApplicationFactory<Program>, IAsyncLife
                 options.UseNpgsql(_container!.GetConnectionString());
             });
 
-            var sp = services.BuildServiceProvider();
-            using (var scope = sp.CreateScope())
+            // Apply migrations after services are configured
+            var serviceProvider = services.BuildServiceProvider();
+            using (var scope = serviceProvider.CreateScope())
             {
                 var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
                 // Create database schema from model
                 dbContext.Database.EnsureCreated();
+                // Apply migrations to test database
+                dbContext.Database.Migrate();
             }
         });
     }
