@@ -1,0 +1,11 @@
+C:\Users\alex2\RiderProjects\CaptionGenerator\CaptionGenerator.Domain\bin\Debug\net10.0\CaptionGenerator.Domain.deps.json
+C:\Users\alex2\RiderProjects\CaptionGenerator\CaptionGenerator.Domain\bin\Debug\net10.0\CaptionGenerator.Domain.dll
+C:\Users\alex2\RiderProjects\CaptionGenerator\CaptionGenerator.Domain\bin\Debug\net10.0\CaptionGenerator.Domain.pdb
+C:\Users\alex2\RiderProjects\CaptionGenerator\CaptionGenerator.Domain\obj\Debug\net10.0\CaptionGenerator.Domain.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\alex2\RiderProjects\CaptionGenerator\CaptionGenerator.Domain\obj\Debug\net10.0\CaptionGenerator.Domain.AssemblyInfoInputs.cache
+C:\Users\alex2\RiderProjects\CaptionGenerator\CaptionGenerator.Domain\obj\Debug\net10.0\CaptionGenerator.Domain.AssemblyInfo.cs
+C:\Users\alex2\RiderProjects\CaptionGenerator\CaptionGenerator.Domain\obj\Debug\net10.0\CaptionGenerator.Domain.csproj.CoreCompileInputs.cache
+C:\Users\alex2\RiderProjects\CaptionGenerator\CaptionGenerator.Domain\obj\Debug\net10.0\CaptionGenerator.Domain.dll
+C:\Users\alex2\RiderProjects\CaptionGenerator\CaptionGenerator.Domain\obj\Debug\net10.0\refint\CaptionGenerator.Domain.dll
+C:\Users\alex2\RiderProjects\CaptionGenerator\CaptionGenerator.Domain\obj\Debug\net10.0\CaptionGenerator.Domain.pdb
+C:\Users\alex2\RiderProjects\CaptionGenerator\CaptionGenerator.Domain\obj\Debug\net10.0\ref\CaptionGenerator.Domain.dll

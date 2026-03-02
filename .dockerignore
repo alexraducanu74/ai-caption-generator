@@ -1,0 +1,15 @@
+﻿.dockerignore
+bin/
+obj/
+.git
+.gitignore
+.idea/
+.rider/
+.vs/
+*.sln.iml
+.env
+*.swp
+*.swo
+*~
+.DS_Store
+

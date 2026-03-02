@@ -1,0 +1,60 @@
+﻿using CaptionGenerator.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Testcontainers.PostgreSql;
+
+namespace CaptionGenerator.Tests.Integration;
+
+public class IntegrationTestFactory : WebApplicationFactory<Program>, IAsyncLifetime
+{
+    private PostgreSqlContainer? _container;
+
+    public async Task InitializeAsync()
+    {
+        _container = new PostgreSqlBuilder()
+            .WithImage("postgres:latest")
+            .Build();
+
+        await _container.StartAsync();
+    }
+
+    public new async Task DisposeAsync()
+    {
+        if (_container is not null)
+        {
+            await _container.StopAsync();
+            await _container.DisposeAsync();
+        }
+    }
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        builder.ConfigureServices(services =>
+        {
+            var descriptor = services.SingleOrDefault(d =>
+                d.ServiceType == typeof(DbContextOptions<AppDbContext>));
+            if (descriptor is not null)
+            {
+                services.Remove(descriptor);
+            }
+
+            services.AddDbContext<AppDbContext>(options =>
+            {
+                options.UseNpgsql(_container!.GetConnectionString());
+            });
+
+            var sp = services.BuildServiceProvider();
+            using (var scope = sp.CreateScope())
+            {
+                var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                // Create database schema from model
+                dbContext.Database.EnsureCreated();
+            }
+        });
+    }
+}
+
+
+
