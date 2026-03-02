@@ -30,84 +30,63 @@ jobs:
           - 5432:5432
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '10.0.x'
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
 
-    - name: Restore dependencies
-      run: dotnet restore
+      - name: Install SonarCloud scanner
+        run: dotnet tool install --global dotnet-sonarscanner
 
-    - name: Build
-      run: dotnet build --no-restore --configuration Release
+      - name: Cache SonarCloud packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
 
-    - name: Run Unit Tests
-      run: dotnet test CaptionGenerator.Tests.Unit/CaptionGenerator.Tests.Unit.csproj --no-build --configuration Release --verbosity normal --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
+      - name: Restore dependencies
+        run: dotnet restore
 
-    - name: Run Integration Tests
-      run: dotnet test CaptionGenerator.Tests.Integration/CaptionGenerator.Tests.Integration.csproj --no-build --configuration Release --verbosity normal --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
-      env:
-        ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=caption_generator;Username=postgres;Password=postgres;"
+      - name: Begin SonarCloud Analysis
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          dotnet sonarscanner begin /k:"alexraducanu74_CaptionGenerator" /o:"alexraducanu74" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" /d:sonar.coverage.exclusions="**/Tests/**,**/Migrations/**" /d:sonar.qualitygate.wait=true
 
-    - name: Upload Test Results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: test-results
-        path: '**/TestResults/'
+      - name: Build
+        run: dotnet build --no-restore --configuration Release --no-incremental
 
-    - name: Code Coverage Summary
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: coverage-reports
-        path: '**/coverage.opencover.xml'
+      - name: Run Unit Tests
+        run: dotnet test CaptionGenerator.Tests.Unit/CaptionGenerator.Tests.Unit.csproj --no-build --configuration Release --verbosity normal --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:ExcludeByAttribute="Obsolete"
 
-  sonarqube-analysis:
-    runs-on: ubuntu-latest
-    needs: build-and-test
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+      - name: Run Integration Tests
+        run: dotnet test CaptionGenerator.Tests.Integration/CaptionGenerator.Tests.Integration.csproj --no-build --configuration Release --verbosity normal --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:ExcludeByAttribute="Obsolete"
+        env:
+          ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=caption_generator;Username=postgres;Password=postgres;"
 
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+      - name: End SonarCloud Analysis
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '10.0.x'
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: '**/TestResults/'
 
-    - name: Install SonarScanner
-      run: |
-        dotnet tool install --global dotnet-sonarscanner
-        dotnet tool install --global dotnet-coverage
-
-    - name: Begin SonarQube Analysis
-      run: |
-        dotnet-sonarscanner begin \
-          /k:"CaptionGenerator" \
-          /n:"Caption Generator API" \
-          /d:sonar.host.url="${{ secrets.SONAR_HOST_URL }}" \
-          /d:sonar.login="${{ secrets.SONAR_TOKEN }}" \
-          /d:sonar.cs.coverage.reportsPaths="**/coverage.opencover.xml" \
-          /d:sonar.qualitygate.wait=true
-
-    - name: Restore dependencies
-      run: dotnet restore
-
-    - name: Build
-      run: dotnet build --no-restore --configuration Release
-
-    - name: Run Tests with Coverage
-      run: dotnet test --no-build --configuration Release /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
-
-    - name: End SonarQube Analysis
-      run: dotnet-sonarscanner end /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Code Coverage Summary
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-reports
+          path: '**/coverage.opencover.xml'
 
   docker-build-push:
     runs-on: ubuntu-latest
@@ -118,38 +97,38 @@ jobs:
       packages: write
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Setup Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-    - name: Log in to Container Registry
-      uses: docker/login-action@v3
-      with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Extract Metadata
-      id: meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-        tags: |
-          type=ref,event=branch
-          type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
-          type=sha,prefix={{branch}}-
+      - name: Extract Metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
 
-    - name: Build and Push Docker Image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        push: true
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   deploy:
     runs-on: ubuntu-latest
@@ -157,13 +136,12 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Deploy to Cloud
-      run: |
-        echo "Deployment to cloud would happen here"
-        echo "This is a placeholder for Azure Container Apps, AWS ECS, or GCP Cloud Run deployment"
-      env:
-        DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
-        DEPLOY_SERVER: ${{ secrets.DEPLOY_SERVER }}
-
+      - name: Deploy to Cloud
+        run: |
+          echo "Deployment to cloud would happen here"
+          echo "This is a placeholder for Azure Container Apps, AWS ECS, or GCP Cloud Run deployment"
+        env:
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+          DEPLOY_SERVER: ${{ secrets.DEPLOY_SERVER }}
