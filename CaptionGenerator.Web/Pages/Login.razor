@@ -1,0 +1,82 @@
+﻿@page "/login"
+@inject AuthApiClient AuthApiClient
+@inject AuthStateStore AuthStateStore
+@inject NavigationManager NavigationManager
+
+<PageTitle>Login</PageTitle>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <h4 class="card-title mb-3">Login</h4>
+
+        @if (!string.IsNullOrWhiteSpace(_message))
+        {
+            <div class="alert @( _isError ? "alert-danger" : "alert-success")" role="alert">@_message</div>
+        }
+
+        <EditForm Model="_form" OnValidSubmit="OnSubmitAsync">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="mb-3">
+                <label class="form-label">Email</label>
+                <InputText class="form-control" @bind-Value="_form.Email" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Password</label>
+                <InputText class="form-control" type="password" @bind-Value="_form.Password" />
+            </div>
+
+            <button class="btn btn-primary" type="submit" disabled="@_submitting">@(_submitting ? "Signing in..." : "Login")</button>
+            <a class="btn btn-link" href="/register">Need an account?</a>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private readonly LoginForm _form = new();
+    private bool _submitting;
+    private string? _message;
+    private bool _isError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthStateStore.InitializeAsync();
+        if (AuthStateStore.IsAuthenticated)
+        {
+            NavigationManager.NavigateTo("/");
+        }
+    }
+
+    private async Task OnSubmitAsync()
+    {
+        _submitting = true;
+        _isError = false;
+        _message = null;
+
+        var result = await AuthApiClient.LoginAsync(new LoginRequest(_form.Email, _form.Password));
+        _submitting = false;
+
+        _message = result.Message;
+        _isError = !result.Success;
+
+        if (result.Success)
+        {
+            await AuthApiClient.ApplyAuthHeaderAsync();
+            NavigationManager.NavigateTo("/");
+        }
+    }
+
+    private class LoginForm
+    {
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; } = string.Empty;
+
+        [Required]
+        [MinLength(6)]
+        public string Password { get; set; } = string.Empty;
+    }
+}
+

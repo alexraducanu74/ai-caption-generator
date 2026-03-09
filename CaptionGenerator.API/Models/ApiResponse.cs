@@ -1,4 +1,4 @@
-﻿namespace CaptionGenerator.API.Models;
+﻿﻿namespace CaptionGenerator.API.Models;
 
 public class ApiResponse<T>
 {
@@ -21,10 +21,14 @@ public class ApiResponse<T>
         Errors = errors;
     }
 
+    // Needed for System.Text.Json deserialization in tests/clients.
+    public ApiResponse()
+    {
+    }
+
     public static ApiResponse<T> SuccessResponse(T data, string message = "Success") =>
         new(data, message);
 
     public static ApiResponse<T> ErrorResponse(string message, Dictionary<string, string[]>? errors = null) =>
         new(message, errors);
 }
-

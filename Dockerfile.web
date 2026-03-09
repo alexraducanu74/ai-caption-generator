@@ -1,0 +1,23 @@
+# Build stage
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+# Copy project file
+COPY ["CaptionGenerator.Web/CaptionGenerator.Web.csproj", "CaptionGenerator.Web/"]
+# Restore dependencies
+RUN dotnet restore "CaptionGenerator.Web/CaptionGenerator.Web.csproj"
+# Copy source code
+COPY CaptionGenerator.Web/ CaptionGenerator.Web/
+# Build and publish
+WORKDIR "/src/CaptionGenerator.Web"
+RUN dotnet publish "CaptionGenerator.Web.csproj" -c Release -o /app/publish
+# Runtime stage with nginx
+FROM nginx:alpine AS final
+WORKDIR /usr/share/nginx/html
+# Remove default nginx static assets
+RUN rm -rf ./*
+# Copy published Blazor WASM app
+COPY --from=build /app/publish/wwwroot .
+# Copy custom nginx config
+COPY nginx.conf /etc/nginx/nginx.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]

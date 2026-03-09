@@ -3,12 +3,14 @@ using CaptionGenerator.Application.Posts.Commands;
 using CaptionGenerator.Application.Posts.Queries;
 using CaptionGenerator.Domain.Enums;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CaptionGenerator.API.Controllers;
 
 [ApiController]
 [Route("api/v1/posts")]
+[Authorize]
 public class PostsController : ControllerBase
 {
     private readonly IMediator _mediator;

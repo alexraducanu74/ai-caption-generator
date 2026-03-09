@@ -1,0 +1,72 @@
+﻿@page "/register"
+@inject AuthApiClient AuthApiClient
+@inject NavigationManager NavigationManager
+
+<PageTitle>Register</PageTitle>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <h4 class="card-title mb-3">Register</h4>
+
+        @if (!string.IsNullOrWhiteSpace(_message))
+        {
+            <div class="alert @( _isError ? "alert-danger" : "alert-success")" role="alert">@_message</div>
+        }
+
+        <EditForm Model="_form" OnValidSubmit="OnSubmitAsync">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="mb-3">
+                <label class="form-label">Email</label>
+                <InputText class="form-control" @bind-Value="_form.Email" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Password</label>
+                <InputText class="form-control" type="password" @bind-Value="_form.Password" />
+            </div>
+
+            <button class="btn btn-primary" type="submit" disabled="@_submitting">@(_submitting ? "Creating..." : "Register")</button>
+            <a class="btn btn-link" href="/login">Already have an account?</a>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private readonly RegisterForm _form = new();
+    private bool _submitting;
+    private string? _message;
+    private bool _isError;
+
+    private async Task OnSubmitAsync()
+    {
+        _submitting = true;
+        _isError = false;
+        _message = null;
+
+        var result = await AuthApiClient.RegisterAsync(new RegisterRequest(_form.Email, _form.Password));
+        _submitting = false;
+
+        _message = result.Message;
+        _isError = !result.Success;
+
+        if (result.Success)
+        {
+            await Task.Delay(600);
+            NavigationManager.NavigateTo("/login");
+        }
+    }
+
+    private class RegisterForm
+    {
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; } = string.Empty;
+
+        [Required]
+        [MinLength(6)]
+        public string Password { get; set; } = string.Empty;
+    }
+}
+

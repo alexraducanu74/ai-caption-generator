@@ -50,15 +50,8 @@ public class IntegrationTestFactory : WebApplicationFactory<Program>, IAsyncLife
             using (var scope = serviceProvider.CreateScope())
             {
                 var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                // Create database schema from model
-                dbContext.Database.EnsureCreated();
-                // Apply migrations to test database
                 dbContext.Database.Migrate();
             }
         });
     }
 }
-
-
-
-

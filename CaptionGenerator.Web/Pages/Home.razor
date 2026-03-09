@@ -1,0 +1,50 @@
+﻿@page "/"
+@inject AuthStateStore AuthStateStore
+@inject AuthApiClient AuthApiClient
+@inject NavigationManager NavigationManager
+
+<PageTitle>Home</PageTitle>
+
+@if (!_ready)
+{
+    <p>Loading...</p>
+}
+else if (!AuthStateStore.IsAuthenticated)
+{
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h5 class="card-title">You are not logged in</h5>
+            <p class="card-text">Please sign in to access protected API endpoints.</p>
+            <a class="btn btn-primary me-2" href="/login">Login</a>
+            <a class="btn btn-outline-secondary" href="/register">Register</a>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h5 class="card-title">Authenticated</h5>
+            <p class="card-text mb-1">Email: @AuthStateStore.Session?.Email</p>
+            <p class="card-text text-muted">Token expires: @AuthStateStore.Session?.ExpiresAtUtc.ToLocalTime()</p>
+            <button class="btn btn-outline-danger" @onclick="LogoutAsync">Logout</button>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _ready;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthStateStore.InitializeAsync();
+        await AuthApiClient.ApplyAuthHeaderAsync();
+        _ready = true;
+    }
+
+    private async Task LogoutAsync()
+    {
+        await AuthApiClient.LogoutAsync();
+        NavigationManager.NavigateTo("/login", true);
+    }
+}
