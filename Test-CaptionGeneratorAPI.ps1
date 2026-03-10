@@ -138,11 +138,23 @@ $caption = "PowerShell flow test $([DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm
 Write-Host "Base URL: $BaseUrl"
 Write-Host "Test user: $email"
 
-# 1) Register
+# 1) Verify protected endpoint is blocked before login
+$unauthorizedResponse = Invoke-ApiRequest -Method "Get" -Uri "$BaseUrl/posts"
+if ($unauthorizedResponse.StatusCode -notin @(401, 403)) {
+    Write-Host "[FAIL] Protected endpoint before login - expected HTTP 401 or 403, got $($unauthorizedResponse.StatusCode)" -ForegroundColor Red
+    if ($unauthorizedResponse.RawBody) {
+        Write-Host "Response body:" -ForegroundColor Yellow
+        Write-Host $unauthorizedResponse.RawBody
+    }
+    exit 1
+}
+Write-Host "[PASS] Protected endpoint before login is blocked (HTTP $($unauthorizedResponse.StatusCode))" -ForegroundColor Green
+
+# 2) Register
 $registerResponse = Invoke-ApiRequest -Method "Post" -Uri "$BaseUrl/auth/register" -Body @{ Email = $email; Password = $Password }
 Assert-StatusCode -Step "Register" -Expected 201 -Response $registerResponse
 
-# 2) Login
+# 3) Login
 $loginResponse = Invoke-ApiRequest -Method "Post" -Uri "$BaseUrl/auth/login" -Body @{ Email = $email; Password = $Password }
 Assert-StatusCode -Step "Login" -Expected 200 -Response $loginResponse
 
@@ -167,7 +179,7 @@ Write-Host "[PASS] Login token received" -ForegroundColor Green
 
 $authHeader = @{ Authorization = "Bearer $token" }
 
-# 3) Create post
+# 4) Create post
 $createResponse = Invoke-ApiRequest -Method "Post" -Uri "$BaseUrl/posts" -Headers $authHeader -Body @{ Caption = $caption; Platform = 1 }
 Assert-StatusCode -Step "Create post" -Expected 201 -Response $createResponse
 
@@ -179,7 +191,7 @@ if ([string]::IsNullOrWhiteSpace($postId)) {
 }
 Write-Host "[PASS] Post created with id: $postId" -ForegroundColor Green
 
-# 4a) Get all posts
+# 5a) Get all posts
 $getAllResponse = Invoke-ApiRequest -Method "Get" -Uri "$BaseUrl/posts" -Headers $authHeader
 Assert-StatusCode -Step "Get all posts" -Expected 200 -Response $getAllResponse
 
@@ -200,7 +212,7 @@ if (-not $foundInAll) {
 }
 Write-Host "[PASS] Created post found in get-all response" -ForegroundColor Green
 
-# 4b) Get post by id
+# 5b) Get post by id
 $getByIdResponse = Invoke-ApiRequest -Method "Get" -Uri "$BaseUrl/posts/$postId" -Headers $authHeader
 Assert-StatusCode -Step "Get post by id" -Expected 200 -Response $getByIdResponse
 
@@ -211,11 +223,11 @@ if ([string]$getByIdResponse.Body.Data.Id -ne $postId) {
 }
 Write-Host "[PASS] Get by id returned expected post" -ForegroundColor Green
 
-# 5) Delete post
+# 6) Delete post
 $deleteResponse = Invoke-ApiRequest -Method "Delete" -Uri "$BaseUrl/posts/$postId" -Headers $authHeader
 Assert-StatusCode -Step "Delete post" -Expected 200 -Response $deleteResponse
 
-# 6) Verify deleted (expect 404)
+# 7) Verify deleted (expect 404)
 $verifyDeletedResponse = Invoke-ApiRequest -Method "Get" -Uri "$BaseUrl/posts/$postId" -Headers $authHeader
 Assert-StatusCode -Step "Verify deletion" -Expected 404 -Response $verifyDeletedResponse
 Write-Host "[PASS] Post is deleted and no longer retrievable" -ForegroundColor Green
