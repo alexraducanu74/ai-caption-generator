@@ -133,7 +133,7 @@ function Assert-StatusCode {
 }
 
 $email = "testuser$([guid]::NewGuid().ToString('N').Substring(0,8))@example.com"
-$caption = "PowerShell flow test $([DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ'))"
+$imageUrl = "https://cdn.example.com/powershell-$([guid]::NewGuid().ToString('N')).jpg"
 
 Write-Host "Base URL: $BaseUrl"
 Write-Host "Test user: $email"
@@ -168,7 +168,7 @@ Write-Host "[PASS] Login token received" -ForegroundColor Green
 $authHeader = @{ Authorization = "Bearer $token" }
 
 # 3) Create post
-$createResponse = Invoke-ApiRequest -Method "Post" -Uri "$BaseUrl/posts" -Headers $authHeader -Body @{ Caption = $caption; Platform = 1 }
+$createResponse = Invoke-ApiRequest -Method "Post" -Uri "$BaseUrl/posts" -Headers $authHeader -Body @{ Platform = 1; ImageUrl = $imageUrl }
 Assert-StatusCode -Step "Create post" -Expected 201 -Response $createResponse
 
 $postId = [string]$createResponse.Body.Data

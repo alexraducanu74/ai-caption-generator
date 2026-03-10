@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using CaptionGenerator.API.Middleware;
 using CaptionGenerator.API.Models;
+using CaptionGenerator.API.Services;
 using CaptionGenerator.Application.Abstractions;
 using CaptionGenerator.Application.Behaviors;
 using CaptionGenerator.Application.Posts.Commands;
@@ -24,6 +25,7 @@ builder.Services.AddControllers()
     });
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
+builder.Services.Configure<CaptionGenerationOptions>(builder.Configuration.GetSection("CaptionGeneration"));
 
 // Add Database
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -101,6 +103,8 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services.AddHttpClient<ICaptionGenerationClient, PythonCaptionGenerationClient>();
+
 var app = builder.Build();
 
 // Middleware
@@ -112,6 +116,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
 app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
@@ -134,6 +139,8 @@ using (var scope = app.Services.CreateScope())
                 ""Id"" uuid NOT NULL,
                 ""Caption"" character varying(100) NOT NULL,
                 ""Platform"" integer NOT NULL,
+                ""ImageUrl"" text NOT NULL,
+                ""CreatedAtUtc"" timestamp with time zone NOT NULL,
                 ""Status"" integer NOT NULL,
                 CONSTRAINT ""PK_Posts"" PRIMARY KEY (""Id"")
             );

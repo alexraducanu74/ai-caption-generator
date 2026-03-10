@@ -2,6 +2,7 @@
 @Email = test.user@example.com
 @Password = secret1
 @Token = REPLACE_WITH_JWT
+@UploadedImageUrl = https://localhost:7012/uploads/images/REPLACE_WITH_FILE_NAME.jpg
 
 ### Register
 POST {{CaptionGeneratorApi_HostAddress}}/api/v1/auth/register
@@ -19,6 +20,28 @@ Content-Type: application/json
 {
   "email": "{{Email}}",
   "password": "{{Password}}"
+}
+
+### Upload image through backend (requires JWT)
+POST {{CaptionGeneratorApi_HostAddress}}/api/v1/uploads/images
+Authorization: Bearer {{Token}}
+Content-Type: multipart/form-data; boundary=UploadBoundary
+
+--UploadBoundary
+Content-Disposition: form-data; name="file"; filename="demo.jpg"
+Content-Type: image/jpeg
+
+< ./demo.jpg
+--UploadBoundary--
+
+### Create post (requires JWT + uploaded image URL)
+POST {{CaptionGeneratorApi_HostAddress}}/api/v1/posts
+Authorization: Bearer {{Token}}
+Content-Type: application/json
+
+{
+  "platform": 1,
+  "imageUrl": "{{UploadedImageUrl}}"
 }
 
 ### Get posts (requires JWT)

@@ -10,5 +10,9 @@ public class RegisterPostValidator : AbstractValidator<RegisterPostCommand>
     {
         RuleFor(p => p.caption).MaximumLength(100).NotEmpty();
         RuleFor(p => p.platform).IsInEnum();
+        RuleFor(p => p.imageUrl)
+            .NotEmpty()
+            .Must(url => Uri.IsWellFormedUriString(url, UriKind.Absolute))
+            .WithMessage("Image URL must be a valid absolute URL.");
     }
 }

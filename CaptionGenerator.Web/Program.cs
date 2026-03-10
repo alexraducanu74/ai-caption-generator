@@ -11,5 +11,6 @@ var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? "https://localhost:7012/
 builder.Services.AddScoped(_ => new HttpClient { BaseAddress = new Uri(apiBaseUrl) });
 builder.Services.AddScoped<AuthStateStore>();
 builder.Services.AddScoped<AuthApiClient>();
+builder.Services.AddScoped<PostsApiClient>();
 
 await builder.Build().RunAsync();

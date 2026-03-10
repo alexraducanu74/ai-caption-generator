@@ -1,4 +1,4 @@
-﻿using CaptionGenerator.Application.Abstractions;
+﻿﻿using CaptionGenerator.Application.Abstractions;
 using CaptionGenerator.Domain.Entities;
 using MediatR;
 
@@ -7,7 +7,7 @@ namespace CaptionGenerator.Application.Posts.Commands;
 public sealed class RegisterPostCommandHandler : IRequestHandler<RegisterPostCommand, Guid>
 {
     private readonly IPostsRepository _repository;
-    
+
     public RegisterPostCommandHandler(IPostsRepository repository)
     {
         _repository = repository;
@@ -15,7 +15,7 @@ public sealed class RegisterPostCommandHandler : IRequestHandler<RegisterPostCom
 
     public async Task<Guid> Handle(RegisterPostCommand request, CancellationToken cancellationToken)
     {
-        var post = Post.Create(request.caption, request.platform);
+        var post = Post.Create(request.caption, request.platform, request.imageUrl);
         await _repository.AddAsync(post, cancellationToken);
         return post.Id;
     }

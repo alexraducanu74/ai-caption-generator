@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
 
@@ -31,6 +32,15 @@ public class IntegrationTestFactory : WebApplicationFactory<Program>, IAsyncLife
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        builder.ConfigureAppConfiguration((_, configBuilder) =>
+        {
+            configBuilder.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["CaptionGeneration:BaseUrl"] = string.Empty,
+                ["CaptionGeneration:GeneratePath"] = "/generate-caption"
+            });
+        });
+
         builder.ConfigureServices(services =>
         {
             var descriptor = services.SingleOrDefault(d =>

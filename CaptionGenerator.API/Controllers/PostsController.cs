@@ -1,4 +1,6 @@
 ﻿using CaptionGenerator.API.Models;
+using CaptionGenerator.API.Models.Requests;
+using CaptionGenerator.API.Services;
 using CaptionGenerator.Application.Posts.Commands;
 using CaptionGenerator.Application.Posts.Queries;
 using CaptionGenerator.Domain.Enums;
@@ -14,10 +16,12 @@ namespace CaptionGenerator.API.Controllers;
 public class PostsController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly ICaptionGenerationClient _captionGenerationClient;
 
-    public PostsController(IMediator mediator)
+    public PostsController(IMediator mediator, ICaptionGenerationClient captionGenerationClient)
     {
         _mediator = mediator;
+        _captionGenerationClient = captionGenerationClient;
     }
 
     /// <summary>
@@ -26,9 +30,27 @@ public class PostsController : ControllerBase
     [HttpPost]
     [ProducesResponseType(typeof(ApiResponse<Guid>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(object), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status502BadGateway)]
     public async Task<IActionResult> RegisterPost([FromBody] RegisterPostRequest request)
     {
-        var command = new RegisterPostCommand(request.Caption, (SocialPlatform)request.Platform);
+        if (!Enum.IsDefined(typeof(SocialPlatform), request.Platform))
+        {
+            return BadRequest(ApiResponse<object>.ErrorResponse("Invalid platform value."));
+        }
+
+        if (string.IsNullOrWhiteSpace(request.ImageUrl))
+        {
+            return BadRequest(ApiResponse<object>.ErrorResponse("ImageUrl is required."));
+        }
+
+        var captionResult = await _captionGenerationClient.GenerateCaptionAsync(request.ImageUrl, HttpContext.RequestAborted);
+        if (!captionResult.Success || string.IsNullOrWhiteSpace(captionResult.Caption))
+        {
+            return StatusCode(StatusCodes.Status502BadGateway,
+                ApiResponse<object>.ErrorResponse(captionResult.ErrorMessage ?? "Failed to generate caption."));
+        }
+
+        var command = new RegisterPostCommand(captionResult.Caption, (SocialPlatform)request.Platform, request.ImageUrl);
         var id = await _mediator.Send(command);
         var response = ApiResponse<Guid>.SuccessResponse(id, "Post created successfully");
         return CreatedAtAction(nameof(GetPostById), new { id }, response);
@@ -43,7 +65,9 @@ public class PostsController : ControllerBase
     {
         var query = new GetPostQuery(status);
         var posts = await _mediator.Send(query);
-        var response = posts.Select(p => new PostResponse(p.id, p.caption, p.platform, p.status)).ToList();
+        var response = posts
+            .Select(p => new PostResponse(p.id, p.caption, p.platform, p.status, p.imageUrl, p.createdAtUtc))
+            .ToList();
         return Ok(ApiResponse<List<PostResponse>>.SuccessResponse(response, "Posts retrieved successfully"));
     }
 
@@ -64,7 +88,7 @@ public class PostsController : ControllerBase
             return NotFound(ApiResponse<object>.ErrorResponse("Post not found"));
         }
 
-        var response = new PostResponse(post.id, post.caption, post.platform, post.status);
+        var response = new PostResponse(post.id, post.caption, post.platform, post.status, post.imageUrl, post.createdAtUtc);
         return Ok(ApiResponse<PostResponse>.SuccessResponse(response, "Post retrieved successfully"));
     }
 

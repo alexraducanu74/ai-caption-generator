@@ -1,4 +1,3 @@
-﻿namespace CaptionGenerator.API.Models;
+﻿namespace CaptionGenerator.API.Models.Requests;
 
-public record RegisterPostRequest(string Caption, int Platform);
-
+public record RegisterPostRequest(int Platform, string ImageUrl);

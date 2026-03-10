@@ -1,4 +1,4 @@
-﻿using System.Net;
+﻿﻿using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using CaptionGenerator.API.Models;
@@ -21,28 +21,27 @@ public class PostsControllerIntegrationTests : IClassFixture<IntegrationTestFact
     {
         await AuthenticateAsync();
 
-        var request = new RegisterPostRequest("Test Caption", 1);
+        var request = new RegisterPostRequest(1, "https://cdn.example.com/test.jpg");
         var response = await _client.PostAsJsonAsync("/api/v1/posts", request);
         response.StatusCode.Should().Be(HttpStatusCode.Created);
     }
 
     [Fact]
-    public async Task CreatePost_WithEmptyCaption_ShouldReturn400BadRequest()
+    public async Task CreatePost_WithEmptyImageUrl_ShouldReturn400BadRequest()
     {
         await AuthenticateAsync();
 
-        var request = new RegisterPostRequest("", 0);
+        var request = new RegisterPostRequest(0, "");
         var response = await _client.PostAsJsonAsync("/api/v1/posts", request);
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     [Fact]
-    public async Task CreatePost_WithCaptionExceeding100Chars_ShouldReturn400()
+    public async Task CreatePost_WithInvalidPlatform_ShouldReturn400()
     {
         await AuthenticateAsync();
 
-        var longCaption = new string('a', 101);
-        var request = new RegisterPostRequest(longCaption, 0);
+        var request = new RegisterPostRequest(999, "https://cdn.example.com/test.jpg");
         var response = await _client.PostAsJsonAsync("/api/v1/posts", request);
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
@@ -77,12 +76,11 @@ public class PostsControllerIntegrationTests : IClassFixture<IntegrationTestFact
     }
 
     [Fact]
-    public async Task CreatePost_WithMaxLengthCaption_ShouldSucceed()
+    public async Task CreatePost_WithValidImageUrl_ShouldSucceed()
     {
         await AuthenticateAsync();
 
-        var maxCaption = new string('a', 100);
-        var request = new RegisterPostRequest(maxCaption, 0);
+        var request = new RegisterPostRequest(0, "https://cdn.example.com/another.jpg");
         var response = await _client.PostAsJsonAsync("/api/v1/posts", request);
         response.StatusCode.Should().Be(HttpStatusCode.Created);
     }

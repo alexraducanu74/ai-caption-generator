@@ -1,0 +1,170 @@
+﻿@page "/posts"
+@inject AuthStateStore AuthStateStore
+@inject PostsApiClient PostsApiClient
+
+<PageTitle>Posts</PageTitle>
+
+@if (!_ready)
+{
+    <p>Loading...</p>
+}
+else if (!AuthStateStore.IsAuthenticated)
+{
+    <div class="alert alert-warning" role="alert">
+        You must log in to upload images and create posts.
+    </div>
+    <a class="btn btn-primary" href="/login">Go to login</a>
+}
+else
+{
+    <div class="row g-4">
+        <div class="col-lg-5">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Create post</h5>
+                    <p class="text-muted small">Caption is generated automatically by the backend Python API.</p>
+
+                    @if (!string.IsNullOrWhiteSpace(_message))
+                    {
+                        <div class="alert @(_isError ? "alert-danger" : "alert-success")" role="alert">@_message</div>
+                    }
+
+                    <EditForm Model="_form" OnValidSubmit="CreatePostAsync">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+
+                        <div class="mb-3">
+                            <label class="form-label">Platform</label>
+                            <InputSelect class="form-select" @bind-Value="_form.Platform">
+                                <option value="0">Facebook</option>
+                                <option value="1">Instagram</option>
+                            </InputSelect>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Image</label>
+                            <InputFile OnChange="OnImageSelected" accept=".jpg,.jpeg,.png,.webp" />
+                            @if (_selectedImage is not null)
+                            {
+                                <small class="d-block text-muted mt-1">Selected: @_selectedImage.Name</small>
+                            }
+                        </div>
+
+                        <button class="btn btn-primary" type="submit" disabled="@_submitting">@(_submitting ? "Creating..." : "Upload + Create")</button>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title mb-0">Recent posts</h5>
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="LoadPostsAsync">Refresh</button>
+                    </div>
+
+                    @if (_posts.Count == 0)
+                    {
+                        <p class="text-muted mb-0">No posts yet.</p>
+                    }
+                    else
+                    {
+                        @foreach (var post in _posts.OrderByDescending(p => p.CreatedAtUtc))
+                        {
+                            <div class="border rounded p-2 mb-2">
+                                <div class="d-flex justify-content-between">
+                                    <strong>@post.Platform</strong>
+                                    <small class="text-muted">@post.CreatedAtUtc.ToLocalTime()</small>
+                                </div>
+                                <p class="mb-2">@post.Caption</p>
+                                <img src="@post.ImageUrl" alt="post image" class="img-fluid rounded" style="max-height: 180px;" />
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private readonly CreatePostForm _form = new();
+    private readonly List<PostResponse> _posts = [];
+    private IBrowserFile? _selectedImage;
+    private bool _ready;
+    private bool _submitting;
+    private bool _isError;
+    private string? _message;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthStateStore.InitializeAsync();
+
+        if (!AuthStateStore.IsAuthenticated)
+        {
+            _ready = true;
+            return;
+        }
+
+        await LoadPostsAsync();
+        _ready = true;
+    }
+
+    private async Task LoadPostsAsync()
+    {
+        var posts = await PostsApiClient.GetPostsAsync();
+        _posts.Clear();
+        _posts.AddRange(posts);
+    }
+
+    private void OnImageSelected(InputFileChangeEventArgs args)
+    {
+        _selectedImage = args.File;
+    }
+
+    private async Task CreatePostAsync()
+    {
+        _message = null;
+        _isError = false;
+
+        if (_selectedImage is null)
+        {
+            _isError = true;
+            _message = "Please select an image before creating the post.";
+            return;
+        }
+
+        _submitting = true;
+
+        var uploadResult = await PostsApiClient.UploadImageAsync(_selectedImage);
+        if (!uploadResult.Success || string.IsNullOrWhiteSpace(uploadResult.ImageUrl))
+        {
+            _submitting = false;
+            _isError = true;
+            _message = uploadResult.Message;
+            return;
+        }
+
+        var createResult = await PostsApiClient.CreatePostAsync(new CreatePostRequest(_form.Platform, uploadResult.ImageUrl));
+        _submitting = false;
+
+        _isError = !createResult.Success;
+        _message = createResult.Message;
+
+        if (!createResult.Success)
+        {
+            return;
+        }
+
+        _form.Platform = 0;
+        _selectedImage = null;
+        await LoadPostsAsync();
+    }
+
+    private sealed class CreatePostForm
+    {
+        [Range(0, 1)]
+        public int Platform { get; set; }
+    }
+}

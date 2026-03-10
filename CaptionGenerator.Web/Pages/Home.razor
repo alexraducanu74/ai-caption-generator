@@ -27,6 +27,7 @@ else
             <h5 class="card-title">Authenticated</h5>
             <p class="card-text mb-1">Email: @AuthStateStore.Session?.Email</p>
             <p class="card-text text-muted">Token expires: @AuthStateStore.Session?.ExpiresAtUtc.ToLocalTime()</p>
+            <a class="btn btn-primary me-2" href="/posts">Go to posts</a>
             <button class="btn btn-outline-danger" @onclick="LogoutAsync">Logout</button>
         </div>
     </div>

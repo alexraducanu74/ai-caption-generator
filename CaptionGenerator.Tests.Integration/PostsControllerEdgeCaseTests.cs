@@ -21,18 +21,17 @@ public class PostsControllerEdgeCaseTests : IClassFixture<IntegrationTestFactory
     {
         await AuthenticateAsync();
 
-        var request = new RegisterPostRequest("Valid Caption", 0);
+        var request = new RegisterPostRequest(0, "https://cdn.example.com/valid.jpg");
         var response = await _client.PostAsJsonAsync("/api/v1/posts", request);
         response.StatusCode.Should().Be(HttpStatusCode.Created);
     }
 
     [Fact]
-    public async Task CreatePost_WithExceededLimit_ShouldFail()
+    public async Task CreatePost_WithEmptyImageUrl_ShouldFail()
     {
         await AuthenticateAsync();
 
-        var tooLongCaption = new string('a', 101);
-        var request = new RegisterPostRequest(tooLongCaption, 0);
+        var request = new RegisterPostRequest(0, "");
         var response = await _client.PostAsJsonAsync("/api/v1/posts", request);
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
@@ -51,8 +50,8 @@ public class PostsControllerEdgeCaseTests : IClassFixture<IntegrationTestFactory
     {
         await AuthenticateAsync();
 
-        var requestFb = new RegisterPostRequest("Facebook Post", 0);
-        var requestIg = new RegisterPostRequest("Instagram Post", 1);
+        var requestFb = new RegisterPostRequest(0, "https://cdn.example.com/fb.jpg");
+        var requestIg = new RegisterPostRequest(1, "https://cdn.example.com/ig.jpg");
 
         var responseFb = await _client.PostAsJsonAsync("/api/v1/posts", requestFb);
         var responseIg = await _client.PostAsJsonAsync("/api/v1/posts", requestIg);

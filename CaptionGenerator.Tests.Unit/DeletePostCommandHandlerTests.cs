@@ -1,4 +1,4 @@
-﻿using CaptionGenerator.Application.Posts.Commands;
+﻿﻿using CaptionGenerator.Application.Posts.Commands;
 using CaptionGenerator.Application.Abstractions;
 using CaptionGenerator.Domain.Entities;
 using CaptionGenerator.Domain.Enums;
@@ -15,7 +15,7 @@ public class DeletePostCommandHandlerTests
     public async Task Handle_WithValidId_ShouldDeletePostAndReturnTrue()
     {
         var postId = Guid.NewGuid();
-        var post = Post.Create("Test Post", SocialPlatform.Facebook);
+        var post = Post.Create("Test Post", SocialPlatform.Facebook, "https://cdn.example.com/a.jpg");
 
         _repositoryMock.Setup(r => r.FindAsync(postId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(post);
@@ -50,7 +50,7 @@ public class DeletePostCommandHandlerTests
     public async Task Handle_ShouldCallRepositoryFindAsyncWithCorrectId()
     {
         var postId = Guid.NewGuid();
-        var post = Post.Create("Test Post", SocialPlatform.Instagram);
+        var post = Post.Create("Test Post", SocialPlatform.Instagram, "https://cdn.example.com/b.jpg");
 
         _repositoryMock.Setup(r => r.FindAsync(postId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(post);
@@ -63,4 +63,3 @@ public class DeletePostCommandHandlerTests
         _repositoryMock.Verify(r => r.FindAsync(postId, It.IsAny<CancellationToken>()), Times.Once);
     }
 }
-

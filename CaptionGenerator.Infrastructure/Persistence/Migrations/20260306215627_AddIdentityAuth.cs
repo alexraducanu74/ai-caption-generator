@@ -1,4 +1,4 @@
-﻿﻿using System;
+﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -17,6 +17,8 @@ namespace CaptionGenerator.Infrastructure.Persistence.Migrations
                     ""Id"" uuid NOT NULL,
                     ""Caption"" character varying(100) NOT NULL,
                     ""Platform"" integer NOT NULL,
+                    ""ImageUrl"" text NOT NULL,
+                    ""CreatedAtUtc"" timestamp with time zone NOT NULL,
                     ""Status"" integer NOT NULL,
                     CONSTRAINT ""PK_Posts"" PRIMARY KEY (""Id"")
                 );

@@ -1,4 +1,3 @@
-﻿namespace CaptionGenerator.API.Models;
+﻿﻿namespace CaptionGenerator.API.Models;
 
-public record PostResponse(Guid Id, string Caption, string Platform, string Status);
-
+public record PostResponse(Guid Id, string Caption, string Platform, string Status, string ImageUrl, DateTime CreatedAtUtc);

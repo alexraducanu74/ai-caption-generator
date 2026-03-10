@@ -2,7 +2,6 @@
 using CaptionGenerator.Application.Posts.Validators;
 using CaptionGenerator.Domain.Enums;
 using FluentAssertions;
-using FluentValidation;
 
 namespace CaptionGenerator.Tests.Unit;
 
@@ -13,7 +12,7 @@ public class RegisterPostValidatorTests
     [Fact]
     public async Task Validate_WithValidCommand_ShouldPass()
     {
-        var command = new RegisterPostCommand("Test Caption", SocialPlatform.Instagram);
+        var command = new RegisterPostCommand("Test Caption", SocialPlatform.Instagram, "https://cdn.example.com/test.jpg");
         var result = await _validator.ValidateAsync(command);
         result.IsValid.Should().BeTrue();
     }
@@ -21,7 +20,7 @@ public class RegisterPostValidatorTests
     [Fact]
     public async Task Validate_WithEmptyCaption_ShouldFail()
     {
-        var command = new RegisterPostCommand("", SocialPlatform.Instagram);
+        var command = new RegisterPostCommand("", SocialPlatform.Instagram, "https://cdn.example.com/test.jpg");
         var result = await _validator.ValidateAsync(command);
         result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle(e => e.PropertyName == "caption");
@@ -31,7 +30,7 @@ public class RegisterPostValidatorTests
     public async Task Validate_WithCaptionExceeding100Chars_ShouldFail()
     {
         var longCaption = new string('a', 101);
-        var command = new RegisterPostCommand(longCaption, SocialPlatform.Facebook);
+        var command = new RegisterPostCommand(longCaption, SocialPlatform.Facebook, "https://cdn.example.com/test.jpg");
         var result = await _validator.ValidateAsync(command);
         result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle(e => e.PropertyName == "caption");
@@ -40,10 +39,18 @@ public class RegisterPostValidatorTests
     [Fact]
     public async Task Validate_WithInvalidPlatform_ShouldFail()
     {
-        var command = new RegisterPostCommand("Valid Caption", (SocialPlatform)999);
+        var command = new RegisterPostCommand("Valid Caption", (SocialPlatform)999, "https://cdn.example.com/test.jpg");
         var result = await _validator.ValidateAsync(command);
         result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle(e => e.PropertyName == "platform");
     }
-}
 
+    [Fact]
+    public async Task Validate_WithInvalidImageUrl_ShouldFail()
+    {
+        var command = new RegisterPostCommand("Valid Caption", SocialPlatform.Instagram, "not-a-url");
+        var result = await _validator.ValidateAsync(command);
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().ContainSingle(e => e.PropertyName == "imageUrl");
+    }
+}
