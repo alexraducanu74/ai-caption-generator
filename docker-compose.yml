@@ -29,6 +29,7 @@ services:
     environment:
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=caption_generator;Username=postgres;Password=postgres;"
       ASPNETCORE_ENVIRONMENT: Development
+      CaptionGeneration__BaseUrl: ""
     ports:
       - "5000:5000"
       - "5001:5001"

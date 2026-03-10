@@ -137,29 +137,37 @@ else
 
         _submitting = true;
 
-        var uploadResult = await PostsApiClient.UploadImageAsync(_selectedImage);
-        if (!uploadResult.Success || string.IsNullOrWhiteSpace(uploadResult.ImageUrl))
+        try
+        {
+            var uploadResult = await PostsApiClient.UploadImageAsync(_selectedImage);
+            if (!uploadResult.Success || string.IsNullOrWhiteSpace(uploadResult.ImageUrl))
+            {
+                _isError = true;
+                _message = uploadResult.Message;
+                return;
+            }
+
+            var createResult = await PostsApiClient.CreatePostAsync(new CreatePostRequest(_form.Platform, uploadResult.ImageUrl));
+
+            _isError = !createResult.Success;
+            _message = createResult.Message;
+
+            if (createResult.Success)
+            {
+                _form.Platform = 0;
+                _selectedImage = null;
+                await LoadPostsAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _isError = true;
+            _message = $"Unexpected error: {ex.Message}";
+        }
+        finally
         {
             _submitting = false;
-            _isError = true;
-            _message = uploadResult.Message;
-            return;
         }
-
-        var createResult = await PostsApiClient.CreatePostAsync(new CreatePostRequest(_form.Platform, uploadResult.ImageUrl));
-        _submitting = false;
-
-        _isError = !createResult.Success;
-        _message = createResult.Message;
-
-        if (!createResult.Success)
-        {
-            return;
-        }
-
-        _form.Platform = 0;
-        _selectedImage = null;
-        await LoadPostsAsync();
     }
 
     private sealed class CreatePostForm
