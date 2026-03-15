@@ -17,6 +17,18 @@ log = logging.getLogger("caption-service")
 app = FastAPI(title="Caption Generator Service", version="1.0.0")
 
 MODEL_NAME = os.getenv("CAPTION_MODEL_NAME", "Salesforce/blip-image-captioning-base")
+
+CAPTION_PROMPT = (
+    "You are a professional photo captioner. Follow these rules exactly:\n"
+    "- Describe only what is visible in the image.\n"
+    "- Do not hallucinate or infer anything beyond what you see.\n"
+    "- Keep the caption concise and social-media friendly.\n"
+    "- Use plain, natural language; avoid hashtags, emojis, or special formatting.\n"
+    "- Maximum length: 100 characters.\n"
+    "- Make it friendly and engaging for social media.\n"
+    "Caption:"
+)
+
 _processor: Any | None = None
 _model: Any | None = None
 _model_lock = Lock()
@@ -80,6 +92,40 @@ def fallback_caption_from_url(image_url: str) -> str:
     return fallback_caption_from_name(path)
 
 
+def sanitize_generated_caption(raw_caption: str) -> str:
+    """Remove prompt/rules text if the model echoes it, return only caption text."""
+    if not raw_caption:
+        return ""
+
+    caption = raw_caption.strip()
+    lowered = caption.lower()
+
+    if lowered.startswith(CAPTION_PROMPT.lower()):
+        caption = caption[len(CAPTION_PROMPT):].strip()
+        lowered = caption.lower()
+
+    marker = "caption:"
+    marker_index = lowered.rfind(marker)
+    if marker_index != -1:
+        caption = caption[marker_index + len(marker):].strip()
+
+    caption = re.sub(r"\s+", " ", caption).strip()
+    return caption[:100]
+
+
+def looks_like_prompt_echo(caption: str) -> bool:
+    if not caption:
+        return True
+
+    lowered = caption.lower()
+    return (
+        "follow these rules" in lowered
+        or "do not hallucinate" in lowered
+        or "maximum length" in lowered
+        or lowered.startswith("you are a professional photo captioner")
+    )
+
+
 def run_blip_inference(image_bytes: bytes) -> str:
     processor: Any | None = None
     model: Any | None = None
@@ -93,10 +139,22 @@ def run_blip_inference(image_bytes: bytes) -> str:
         import torch
 
         image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-        inputs = processor(images=image, return_tensors="pt")
+
+        # First try guided generation with rules.
+        prompt_inputs = processor(images=image, text=CAPTION_PROMPT, return_tensors="pt")
         with torch.inference_mode():
-            output = model.generate(**inputs, max_new_tokens=30)
-        caption = processor.decode(output[0], skip_special_tokens=True).strip()
+            prompt_output = model.generate(**prompt_inputs, max_new_tokens=30)
+        caption = processor.decode(prompt_output[0], skip_special_tokens=True).strip()
+        caption = sanitize_generated_caption(caption)
+
+        # If model echoes instructions, regenerate in unconditional caption mode.
+        if looks_like_prompt_echo(caption):
+            plain_inputs = processor(images=image, return_tensors="pt")
+            with torch.inference_mode():
+                plain_output = model.generate(**plain_inputs, max_new_tokens=30)
+            caption = processor.decode(plain_output[0], skip_special_tokens=True).strip()
+            caption = sanitize_generated_caption(caption)
+
         log.info("BLIP caption: %s", caption)
         return caption
     except Exception as ex:
