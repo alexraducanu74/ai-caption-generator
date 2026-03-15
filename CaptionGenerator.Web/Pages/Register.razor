@@ -27,6 +27,11 @@
                 <InputText class="form-control" type="password" @bind-Value="_form.Password" />
             </div>
 
+            <div class="mb-3">
+                <label class="form-label">Confirm password</label>
+                <InputText class="form-control" type="password" @bind-Value="_form.ConfirmPassword" />
+            </div>
+
             <button class="btn btn-primary" type="submit" disabled="@_submitting">@(_submitting ? "Creating..." : "Register")</button>
             <a class="btn btn-link" href="/login">Already have an account?</a>
         </EditForm>
@@ -67,6 +72,9 @@
         [Required]
         [MinLength(6)]
         public string Password { get; set; } = string.Empty;
+
+        [Required]
+        [Compare(nameof(Password), ErrorMessage = "Passwords do not match.")]
+        public string ConfirmPassword { get; set; } = string.Empty;
     }
 }
-
