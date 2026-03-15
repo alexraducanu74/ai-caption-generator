@@ -1,9 +1,11 @@
-﻿using CaptionGenerator.Infrastructure.Persistence;
+﻿using CaptionGenerator.API.Services;
+using CaptionGenerator.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Testcontainers.PostgreSql;
 
 namespace CaptionGenerator.Tests.Integration;
@@ -55,6 +57,9 @@ public class IntegrationTestFactory : WebApplicationFactory<Program>, IAsyncLife
                 options.UseNpgsql(_container!.GetConnectionString());
             });
 
+            services.RemoveAll<ICaptionGenerationClient>();
+            services.AddSingleton<ICaptionGenerationClient, StubCaptionGenerationClient>();
+
             // Apply migrations after services are configured
             var serviceProvider = services.BuildServiceProvider();
             using (var scope = serviceProvider.CreateScope())
@@ -63,5 +68,28 @@ public class IntegrationTestFactory : WebApplicationFactory<Program>, IAsyncLife
                 dbContext.Database.Migrate();
             }
         });
+    }
+
+    private sealed class StubCaptionGenerationClient : ICaptionGenerationClient
+    {
+        public Task<(bool Success, string? Caption, string? ErrorMessage)> GenerateCaptionAsync(string imageUrl, CancellationToken cancellationToken)
+        {
+            var suffix = Path.GetFileNameWithoutExtension(imageUrl);
+            var caption = string.IsNullOrWhiteSpace(suffix)
+                ? "Generated test caption"
+                : $"Generated test caption for {suffix}";
+
+            return Task.FromResult<(bool Success, string? Caption, string? ErrorMessage)>((true, caption[..Math.Min(100, caption.Length)], null));
+        }
+
+        public Task<(bool Success, string? Caption, string? ErrorMessage)> GenerateCaptionFromBytesAsync(byte[] imageBytes, string fileName, CancellationToken cancellationToken)
+        {
+            var suffix = Path.GetFileNameWithoutExtension(fileName);
+            var caption = string.IsNullOrWhiteSpace(suffix)
+                ? "Generated test caption"
+                : $"Generated test caption for {suffix}";
+
+            return Task.FromResult<(bool Success, string? Caption, string? ErrorMessage)>((true, caption[..Math.Min(100, caption.Length)], null));
+        }
     }
 }

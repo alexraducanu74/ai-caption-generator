@@ -17,11 +17,13 @@ public class PostsController : ControllerBase
 {
     private readonly IMediator _mediator;
     private readonly ICaptionGenerationClient _captionGenerationClient;
+    private readonly IWebHostEnvironment _environment;
 
-    public PostsController(IMediator mediator, ICaptionGenerationClient captionGenerationClient)
+    public PostsController(IMediator mediator, ICaptionGenerationClient captionGenerationClient, IWebHostEnvironment environment)
     {
         _mediator = mediator;
         _captionGenerationClient = captionGenerationClient;
+        _environment = environment;
     }
 
     /// <summary>
@@ -43,7 +45,10 @@ public class PostsController : ControllerBase
             return BadRequest(ApiResponse<object>.ErrorResponse("ImageUrl is required."));
         }
 
-        var captionResult = await _captionGenerationClient.GenerateCaptionAsync(request.ImageUrl, HttpContext.RequestAborted);
+        // Try to read the image bytes from disk so we can send them directly to the
+        // caption service — this avoids cross-container URL-fetch failures entirely.
+        var captionResult = await GenerateCaptionFromLocalFileOrUrlAsync(request.ImageUrl, HttpContext.RequestAborted);
+
         if (!captionResult.Success || string.IsNullOrWhiteSpace(captionResult.Caption))
         {
             return StatusCode(StatusCodes.Status502BadGateway,
@@ -54,6 +59,29 @@ public class PostsController : ControllerBase
         var id = await _mediator.Send(command);
         var response = ApiResponse<Guid>.SuccessResponse(id, "Post created successfully");
         return CreatedAtAction(nameof(GetPostById), new { id }, response);
+    }
+
+    private async Task<(bool Success, string? Caption, string? ErrorMessage)> GenerateCaptionFromLocalFileOrUrlAsync(
+        string imageUrl, CancellationToken cancellationToken)
+    {
+        // Extract just the path part of the URL (e.g. /uploads/images/abc.jpg)
+        if (Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri))
+        {
+            var webRootPath = _environment.WebRootPath ?? Path.Combine(_environment.ContentRootPath, "wwwroot");
+            // uri.AbsolutePath is like /uploads/images/abc.jpg
+            var relativePath = uri.AbsolutePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
+            var localPath = Path.Combine(webRootPath, relativePath);
+
+            if (System.IO.File.Exists(localPath))
+            {
+                var bytes = await System.IO.File.ReadAllBytesAsync(localPath, cancellationToken);
+                var fileName = Path.GetFileName(localPath);
+                return await _captionGenerationClient.GenerateCaptionFromBytesAsync(bytes, fileName, cancellationToken);
+            }
+        }
+
+        // Fallback: pass URL (works in tests where stub is used, or when base URL is empty)
+        return await _captionGenerationClient.GenerateCaptionAsync(imageUrl, cancellationToken);
     }
 
     /// <summary>

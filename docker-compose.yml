@@ -18,6 +18,26 @@ services:
     networks:
       - caption-network
 
+  caption-service:
+    build:
+      context: ./caption-service
+      dockerfile: Dockerfile
+    container_name: caption-generator-caption
+    environment:
+      HF_HOME: /root/.cache/huggingface
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - caption-network
+
   api:
     build:
       context: .
@@ -26,10 +46,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      caption-service:
+        condition: service_started
     environment:
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=caption_generator;Username=postgres;Password=postgres;"
       ASPNETCORE_ENVIRONMENT: Development
-      CaptionGeneration__BaseUrl: ""
+      CaptionGeneration__BaseUrl: "http://caption-service:8000"
     ports:
       - "5000:5000"
       - "5001:5001"
@@ -54,3 +76,4 @@ networks:
 
 volumes:
   postgres_data:
+  hf_cache:

@@ -26,6 +26,9 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 
+# Ensure upload directory exists inside the container
+RUN mkdir -p /app/wwwroot/uploads/images
+
 EXPOSE 5000 5001
 
 ENV ASPNETCORE_URLS=http://+:5000
