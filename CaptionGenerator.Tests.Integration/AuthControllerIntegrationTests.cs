@@ -14,10 +14,18 @@ public class AuthControllerIntegrationTests : IClassFixture<IntegrationTestFacto
         _client = factory.CreateClient();
     }
 
-    [Fact]
-    public async Task Register_WithDomainMissingTopLevelSuffix_ShouldReturn400BadRequest()
+    [Theory]
+    [InlineData("invalid-no-at")]
+    [InlineData("invalid@b")]
+    [InlineData("a@a.com>>>>>")]
+    [InlineData(".startdot@example.com")]
+    [InlineData("enddot.@example.com")]
+    [InlineData("double..dot@example.com")]
+    [InlineData("user@-example.com")]
+    [InlineData("user@example..com")]
+    [InlineData("user@example.c")]
+    public async Task Register_WithMalformedEmail_ShouldReturn400BadRequest(string email)
     {
-        var email = $"invalid_{Guid.NewGuid():N}@b";
         const string password = "secret1";
 
         var response = await _client.PostAsJsonAsync("/api/v1/auth/register", new RegisterRequest(email, password));
@@ -25,10 +33,13 @@ public class AuthControllerIntegrationTests : IClassFixture<IntegrationTestFacto
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    [Fact]
-    public async Task Register_WithValidEmail_ShouldReturn201Created()
+    [Theory]
+    [InlineData("valid@example.com")]
+    [InlineData("user.name+tag@example.co.uk")]
+    [InlineData("u_ser-123@example-domain.com")]
+    public async Task Register_WithValidEmail_ShouldReturn201Created(string emailPrefix)
     {
-        var email = $"valid_{Guid.NewGuid():N}@example.com";
+        var email = emailPrefix.Replace("valid", $"valid_{Guid.NewGuid():N}");
         const string password = "secret1";
 
         var response = await _client.PostAsJsonAsync("/api/v1/auth/register", new RegisterRequest(email, password));
@@ -36,4 +47,3 @@ public class AuthControllerIntegrationTests : IClassFixture<IntegrationTestFacto
         response.StatusCode.Should().Be(HttpStatusCode.Created);
     }
 }
-
