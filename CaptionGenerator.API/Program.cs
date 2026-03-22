@@ -103,7 +103,11 @@ builder.Services.AddCors(options =>
     });
 });
 
-builder.Services.AddHttpClient<ICaptionGenerationClient, PythonCaptionGenerationClient>();
+builder.Services.AddHttpClient<ICaptionGenerationClient, PythonCaptionGenerationClient>(client =>
+{
+    // First LLaVA request can take longer while the model downloads/loads.
+    client.Timeout = TimeSpan.FromMinutes(10);
+});
 
 var app = builder.Build();
 

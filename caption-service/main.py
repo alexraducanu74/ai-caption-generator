@@ -1,9 +1,7 @@
 ﻿import io
 import logging
 import os
-import re
 from threading import Lock
-from urllib.parse import urlparse, urlunparse
 from typing import Any
 
 import httpx
@@ -14,23 +12,16 @@ from pydantic import BaseModel
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("caption-service")
 
-app = FastAPI(title="Caption Generator Service", version="1.0.0")
+app = FastAPI(title="Caption Generator Service", version="5.0.0")
 
-MODEL_NAME = os.getenv("CAPTION_MODEL_NAME", "Salesforce/blip-image-captioning-base")
+# Vision-Language Model (LLaVA - sees image + generates captions directly)
+MODEL_NAME = os.getenv("MODEL_NAME", "llava-hf/llava-1.5-7b-hf")
 
-CAPTION_PROMPT = (
-    "You are a professional photo captioner. Follow these rules exactly:\n"
-    "- Describe only what is visible in the image.\n"
-    "- Do not hallucinate or infer anything beyond what you see.\n"
-    "- Keep the caption concise and social-media friendly.\n"
-    "- Use plain, natural language; avoid hashtags, emojis, or special formatting.\n"
-    "- Maximum length: 100 characters.\n"
-    "- Make it friendly and engaging for social media.\n"
-    "Caption:"
-)
-
-_processor: Any | None = None
+# Model and processor
 _model: Any | None = None
+_processor: Any | None = None
+_model_device: str = "cpu"
+
 _model_lock = Lock()
 _model_load_error: str | None = None
 
@@ -44,6 +35,9 @@ class CaptionResponse(BaseModel):
 
 
 def normalize_image_url(image_url: str) -> str:
+    """Convert localhost URLs to host.docker.internal for Docker compatibility."""
+    from urllib.parse import urlparse, urlunparse
+    
     parsed = urlparse(image_url)
     if parsed.hostname in {"localhost", "127.0.0.1"}:
         host = "host.docker.internal"
@@ -53,153 +47,200 @@ def normalize_image_url(image_url: str) -> str:
 
 
 def ensure_model_loaded() -> tuple[Any, Any]:
-    global _processor, _model, _model_load_error
-    if _processor is not None and _model is not None:
-        return _processor, _model
+    """Load the vision-language model (LLaVA) on first use."""
+    global _model, _processor, _model_load_error, _model_device
+
+    if _model and _processor:
+        return _model, _processor
 
     with _model_lock:
-        if _processor is None or _model is None:
-            try:
-                log.info("Loading BLIP model '%s' ...", MODEL_NAME)
-                import torch
-                from transformers import BlipForConditionalGeneration, BlipProcessor as BP
+        try:
+            import torch
+            from transformers import AutoProcessor, LlavaForConditionalGeneration
 
-                _processor = BP.from_pretrained(MODEL_NAME)
-                _model = BlipForConditionalGeneration.from_pretrained(MODEL_NAME)
-                _model.eval()
-                torch.set_num_threads(1)
-                _model_load_error = None
-                log.info("BLIP model loaded OK — status is now ready.")
-            except Exception as ex:
-                _model_load_error = str(ex)
-                log.error("BLIP model load FAILED: %s", ex)
-                raise
+            use_cuda = torch.cuda.is_available()
+            _model_device = "cuda:0" if use_cuda else "cpu"
+            dtype = torch.float16 if use_cuda else torch.float32
 
-    return _processor, _model
+            log.info("Loading vision-language model '%s' on %s...", MODEL_NAME, _model_device)
 
+            _processor = AutoProcessor.from_pretrained(MODEL_NAME)
+            _model = LlavaForConditionalGeneration.from_pretrained(
+                MODEL_NAME,
+                torch_dtype=dtype,
+                low_cpu_mem_usage=True
+            )
+            _model.to(_model_device)
+            _model.eval()
 
-def fallback_caption_from_name(name: str) -> str:
-    stem = name.rsplit(".", 1)[0] if "." in name else name
-    cleaned = re.sub(r"[_\-]+", " ", stem).strip()
-    cleaned = re.sub(r"\s+", " ", cleaned)
-    caption = f"A post featuring {cleaned}." if cleaned else "A moment worth sharing."
-    return caption[:100]
+            _model_load_error = None
+            log.info("Model loaded successfully on %s.", _model_device)
 
+        except Exception as ex:
+            _model_load_error = str(ex)
+            log.error("Model load FAILED: %s", ex, exc_info=True)
+            raise
 
-def fallback_caption_from_url(image_url: str) -> str:
-    parsed = urlparse(image_url)
-    path = parsed.path.rsplit("/", 1)[-1]
-    return fallback_caption_from_name(path)
+    return _model, _processor
 
 
-def sanitize_generated_caption(raw_caption: str) -> str:
-    """Remove prompt/rules text if the model echoes it, return only caption text."""
-    if not raw_caption:
-        return ""
-
-    caption = raw_caption.strip()
-    lowered = caption.lower()
-
-    if lowered.startswith(CAPTION_PROMPT.lower()):
-        caption = caption[len(CAPTION_PROMPT):].strip()
-        lowered = caption.lower()
-
-    marker = "caption:"
-    marker_index = lowered.rfind(marker)
-    if marker_index != -1:
-        caption = caption[marker_index + len(marker):].strip()
-
-    caption = re.sub(r"\s+", " ", caption).strip()
-    return caption[:100]
-
-
-def looks_like_prompt_echo(caption: str) -> bool:
-    if not caption:
-        return True
-
-    lowered = caption.lower()
-    return (
-        "follow these rules" in lowered
-        or "do not hallucinate" in lowered
-        or "maximum length" in lowered
-        or lowered.startswith("you are a professional photo captioner")
-    )
-
-
-def run_blip_inference(image_bytes: bytes) -> str:
-    processor: Any | None = None
-    model: Any | None = None
-    try:
-        processor, model = ensure_model_loaded()
-    except Exception:
-        log.warning("Model unavailable — will use fallback.")
-        return ""
+def generate_caption(image: Image.Image, model: Any, processor: Any) -> str:
+    """Generate a caption from an image using LLaVA."""
+    import torch
 
     try:
-        import torch
+        log.debug("Processing image with model...")
 
-        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        # LLaVA 1.5 expects an explicit image placeholder token in the prompt.
+        user_instruction = (
+            "Write an engaging social media caption for this image. "
+            "Be accurate to what you see and keep it under 100 characters. "
+            "Output only the caption."
+        )
+        prompt = f"USER: <image>\n{user_instruction}\nASSISTANT:"
+        log.debug(f"Prompt: {prompt}")
 
-        # First try guided generation with rules.
-        prompt_inputs = processor(images=image, text=CAPTION_PROMPT, return_tensors="pt")
+        inputs = processor(text=prompt, images=image, return_tensors="pt")
+        inputs = {k: v.to(_model_device) if hasattr(v, "to") else v for k, v in inputs.items()}
+        input_ids = inputs.get("input_ids")
+        log.debug(f"Inputs shape: {input_ids.shape if input_ids is not None else 'N/A'}")
+
+        log.debug("Generating caption with LLaVA...")
         with torch.inference_mode():
-            prompt_output = model.generate(**prompt_inputs, max_new_tokens=30)
-        caption = processor.decode(prompt_output[0], skip_special_tokens=True).strip()
-        caption = sanitize_generated_caption(caption)
+            output = model.generate(
+                **inputs,
+                max_new_tokens=50,
+                min_new_tokens=8,
+                do_sample=True,
+                temperature=0.9,
+                top_p=0.9,
+                top_k=50
+            )
 
-        # If model echoes instructions, regenerate in unconditional caption mode.
-        if looks_like_prompt_echo(caption):
-            plain_inputs = processor(images=image, return_tensors="pt")
-            with torch.inference_mode():
-                plain_output = model.generate(**plain_inputs, max_new_tokens=30)
-            caption = processor.decode(plain_output[0], skip_special_tokens=True).strip()
-            caption = sanitize_generated_caption(caption)
+        log.debug(f"Output shape: {output.shape}")
 
-        log.info("BLIP caption: %s", caption)
+        # Decode only tokens generated after the prompt.
+        input_length = input_ids.shape[1] if input_ids is not None else 0
+        generated_ids = output[0][input_length:]
+        log.debug(f"Generated IDs length: {len(generated_ids)}")
+        caption = processor.decode(generated_ids.detach().cpu(), skip_special_tokens=True)
+        log.debug(f"Raw caption: '{caption}'")
+
+        caption = caption.strip()
+
+        # Strip accidental role leakage.
+        for prefix in ("ASSISTANT:", "Assistant:", "Caption:"):
+            if caption.startswith(prefix):
+                caption = caption[len(prefix):].strip()
+
+        if caption and not caption.endswith((".", "!", "?")):
+            caption = caption + "."
+
+        if caption and caption[0].islower():
+            caption = caption[0].upper() + caption[1:]
+
+        if len(caption) > 100:
+            caption = caption[:97] + "..."
+
+        log.info(f"Final caption: '{caption}'")
         return caption
+
     except Exception as ex:
-        log.error("BLIP inference failed: %s", ex)
-        return ""
+        log.error("CRITICAL: Caption generation failed: %s", ex, exc_info=True)
+        raise
+
+
+@app.on_event("startup")
+def preload_model_on_startup() -> None:
+    """Warm up LLaVA so first caption request is fast and avoids client timeouts."""
+    try:
+        log.info("Preloading model during startup...")
+        ensure_model_loaded()
+        log.info("Startup preload complete.")
+    except Exception as ex:
+        # Keep service up so /health can surface the error via lastError.
+        log.error("Startup preload failed: %s", ex, exc_info=True)
 
 
 @app.get("/health")
 def health() -> dict[str, str | None]:
-    status = "ready" if _processor is not None and _model is not None else "starting"
-    return {"status": status, "model": MODEL_NAME, "lastError": _model_load_error}
+    """Health check endpoint."""
+    status = "ready" if _model and _processor else "starting"
+    return {
+        "status": status,
+        "model": MODEL_NAME,
+        "device": _model_device,
+        "type": "Vision-Language (LLaVA)",
+        "lastError": _model_load_error
+    }
 
 
 @app.post("/generate-caption-upload", response_model=CaptionResponse)
 async def generate_caption_upload(file: UploadFile = File(...)) -> CaptionResponse:
+    """Generate caption from uploaded image."""
     image_bytes = await file.read()
     if not image_bytes:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
-    caption = run_blip_inference(image_bytes)
-    if not caption:
-        caption = fallback_caption_from_name(file.filename or "an image")
-        log.info("Fallback caption: %s", caption)
-
-    return CaptionResponse(caption=caption[:100])
+    try:
+        log.debug("Reading image from upload...")
+        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        
+        log.debug("Loading model...")
+        model, processor = ensure_model_loaded()
+        
+        log.debug("Generating caption...")
+        caption = generate_caption(image, model, processor)
+        
+        if not caption:
+            raise HTTPException(status_code=500, detail="Failed to generate caption")
+        
+        return CaptionResponse(caption=caption[:100])
+        
+    except HTTPException:
+        raise
+    except Exception as ex:
+        log.error(f"Unhandled exception in generate_caption_upload: {ex}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Caption generation failed: {str(ex)}")
 
 
 @app.post("/generate-caption", response_model=CaptionResponse)
-async def generate_caption(request: CaptionRequest) -> CaptionResponse:
+async def generate_caption_endpoint(request: CaptionRequest) -> CaptionResponse:
+    """Generate caption from image URL."""
     if not request.imageUrl.strip():
         raise HTTPException(status_code=400, detail="imageUrl is required.")
 
     target_url = normalize_image_url(request.imageUrl.strip())
+    log.info(f"Fetching image from: {target_url}")
 
     try:
         async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
             response = await client.get(target_url)
             response.raise_for_status()
         image_bytes = response.content
+        log.info(f"Image downloaded successfully ({len(image_bytes)} bytes)")
     except Exception as ex:
+        log.error(f"Failed to download image from {target_url}: {ex}", exc_info=True)
         raise HTTPException(status_code=502, detail=f"Failed to download image: {ex}") from ex
 
-    caption = run_blip_inference(image_bytes)
-    if not caption:
-        caption = fallback_caption_from_url(request.imageUrl.strip())
-        log.info("Fallback caption: %s", caption)
-
-    return CaptionResponse(caption=caption[:100])
+    try:
+        log.debug("Reading image...")
+        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        
+        log.debug("Loading model...")
+        model, processor = ensure_model_loaded()
+        
+        log.debug("Generating caption...")
+        caption = generate_caption(image, model, processor)
+        
+        if not caption:
+            raise HTTPException(status_code=500, detail="Failed to generate caption")
+        
+        log.info(f"Caption generated successfully: '{caption}'")
+        return CaptionResponse(caption=caption[:100])
+        
+    except HTTPException:
+        raise
+    except Exception as ex:
+        log.error(f"Unhandled exception in generate_caption_endpoint: {ex}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Caption generation failed: {str(ex)}")
