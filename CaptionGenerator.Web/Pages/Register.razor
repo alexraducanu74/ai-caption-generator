@@ -67,6 +67,7 @@
     {
         [Required]
         [EmailAddress]
+        [RegularExpression(@"^[^@\s]+@[^@\s]+\.[^@\s]{2,}$", ErrorMessage = "Email must include a valid domain, for example: name@example.com")]
         public string Email { get; set; } = string.Empty;
 
         [Required]

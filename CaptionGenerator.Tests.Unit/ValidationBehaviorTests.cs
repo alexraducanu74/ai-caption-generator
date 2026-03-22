@@ -45,7 +45,7 @@ public class ValidationBehaviorTests
     public async Task Handle_WithMultipleValidationErrors_ShouldThrowWithAllErrors()
     {
         var mockNext = new Mock<RequestHandlerDelegate<Guid>>();
-        var invalidCaption = new string('a', 101);
+        var invalidCaption = new string('a', 281);
         var command = new RegisterPostCommand(invalidCaption, (SocialPlatform)999, "invalid-url");
 
         var behavior = new ValidationBehavior<RegisterPostCommand, Guid>(

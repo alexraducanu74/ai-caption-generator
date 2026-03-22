@@ -1,7 +1,7 @@
 ﻿import io
 import logging
 import os
-from threading import Lock
+from threading import Lock, Thread
 from typing import Any
 
 import httpx
@@ -64,6 +64,10 @@ def ensure_model_loaded() -> tuple[Any, Any]:
         return _model, _processor
 
     with _model_lock:
+        # Double-check after acquiring the lock to avoid duplicate loads.
+        if _model and _processor:
+            return _model, _processor
+
         try:
             import torch
             from transformers import AutoProcessor, LlavaForConditionalGeneration
@@ -175,16 +179,21 @@ def generate_caption(image: Image.Image, model: Any, processor: Any) -> str:
         raise
 
 
-@app.on_event("startup")
-def preload_model_on_startup() -> None:
-    """Warm up LLaVA so first caption request is fast and avoids client timeouts."""
+def _preload_model_task() -> None:
+    """Run warm-up in the background so /health is reachable immediately."""
     try:
-        log.info("Preloading model during startup...")
+        log.info("Background model preload started...")
         ensure_model_loaded()
-        log.info("Startup preload complete.")
+        log.info("Background model preload complete.")
     except Exception as ex:
         # Keep service up so /health can surface the error via lastError.
-        log.error("Startup preload failed: %s", ex, exc_info=True)
+        log.error("Background model preload failed: %s", ex, exc_info=True)
+
+
+@app.on_event("startup")
+def preload_model_on_startup() -> None:
+    """Warm up LLaVA without blocking API startup."""
+    Thread(target=_preload_model_task, daemon=True).start()
 
 
 @app.get("/health")
