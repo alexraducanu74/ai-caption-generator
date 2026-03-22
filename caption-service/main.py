@@ -38,12 +38,21 @@ class CaptionResponse(BaseModel):
 def normalize_image_url(image_url: str) -> str:
     """Convert localhost URLs to host.docker.internal for Docker compatibility."""
     from urllib.parse import urlparse, urlunparse
-    
+
     parsed = urlparse(image_url)
     if parsed.hostname in {"localhost", "127.0.0.1"}:
         host = "host.docker.internal"
         netloc = f"{host}:{parsed.port}" if parsed.port is not None else host
-        return urlunparse((parsed.scheme, netloc, parsed.path, parsed.params, parsed.query, parsed.fragment))
+        return urlunparse(
+            (
+                parsed.scheme,
+                netloc,
+                parsed.path,
+                parsed.params,
+                parsed.query,
+                parsed.fragment,
+            )
+        )
     return image_url
 
 
@@ -63,13 +72,17 @@ def ensure_model_loaded() -> tuple[Any, Any]:
             _model_device = "cuda:0" if use_cuda else "cpu"
             dtype = torch.float16 if use_cuda else torch.float32
 
-            log.info("Loading vision-language model '%s' on %s...", MODEL_NAME, _model_device)
+            log.info(
+                "Loading vision-language model '%s' on %s...",
+                MODEL_NAME,
+                _model_device,
+            )
 
             _processor = AutoProcessor.from_pretrained(MODEL_NAME)
             _model = LlavaForConditionalGeneration.from_pretrained(
                 MODEL_NAME,
                 torch_dtype=dtype,
-                low_cpu_mem_usage=True
+                low_cpu_mem_usage=True,
             )
             _model.to(_model_device)
             _model.eval()
@@ -103,12 +116,18 @@ def generate_caption(image: Image.Image, model: Any, processor: Any) -> str:
             "4) Return only the caption text, with no labels or explanations."
         )
         prompt = f"USER: <image>\n{user_instruction}\nASSISTANT:"
-        log.debug(f"Prompt: {prompt}")
+        log.debug("Prompt: %s", prompt)
 
         inputs = processor(text=prompt, images=image, return_tensors="pt")
-        inputs = {k: v.to(_model_device) if hasattr(v, "to") else v for k, v in inputs.items()}
+        inputs = {
+            key: value.to(_model_device) if hasattr(value, "to") else value
+            for key, value in inputs.items()
+        }
         input_ids = inputs.get("input_ids")
-        log.debug(f"Inputs shape: {input_ids.shape if input_ids is not None else 'N/A'}")
+        log.debug(
+            "Inputs shape: %s",
+            input_ids.shape if input_ids is not None else "N/A",
+        )
 
         log.debug("Generating caption with LLaVA...")
         with torch.inference_mode():
@@ -119,17 +138,20 @@ def generate_caption(image: Image.Image, model: Any, processor: Any) -> str:
                 do_sample=True,
                 temperature=0.9,
                 top_p=0.9,
-                top_k=50
+                top_k=50,
             )
 
-        log.debug(f"Output shape: {output.shape}")
+        log.debug("Output shape: %s", output.shape)
 
         # Decode only tokens generated after the prompt.
         input_length = input_ids.shape[1] if input_ids is not None else 0
         generated_ids = output[0][input_length:]
-        log.debug(f"Generated IDs length: {len(generated_ids)}")
-        caption = processor.decode(generated_ids.detach().cpu(), skip_special_tokens=True)
-        log.debug(f"Raw caption: '{caption}'")
+        log.debug("Generated IDs length: %s", len(generated_ids))
+        caption = processor.decode(
+            generated_ids.detach().cpu(),
+            skip_special_tokens=True,
+        )
+        log.debug("Raw caption: '%s'", caption)
 
         caption = caption.strip()
 
@@ -145,7 +167,7 @@ def generate_caption(image: Image.Image, model: Any, processor: Any) -> str:
             caption = caption[0].upper() + caption[1:]
 
         # Keep full model output; API/domain validation enforces max storage length.
-        log.info(f"Final caption: '{caption}'")
+        log.info("Final caption: '%s'", caption)
         return caption
 
     except Exception as ex:
@@ -174,12 +196,14 @@ def health() -> dict[str, str | None]:
         "model": MODEL_NAME,
         "device": _model_device,
         "type": "Vision-Language (LLaVA)",
-        "lastError": _model_load_error
+        "lastError": _model_load_error,
     }
 
 
 @app.post("/generate-caption-upload", response_model=CaptionResponse)
-async def generate_caption_upload(file: UploadFile = File(...)) -> CaptionResponse:
+async def generate_caption_upload(
+    file: UploadFile = File(...),
+) -> CaptionResponse:
     """Generate caption from uploaded image."""
     image_bytes = await file.read()
     if not image_bytes:
@@ -188,23 +212,33 @@ async def generate_caption_upload(file: UploadFile = File(...)) -> CaptionRespon
     try:
         log.debug("Reading image from upload...")
         image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-        
+
         log.debug("Loading model...")
         model, processor = ensure_model_loaded()
-        
+
         log.debug("Generating caption...")
         caption = generate_caption(image, model, processor)
-        
+
         if not caption:
-            raise HTTPException(status_code=500, detail="Failed to generate caption")
-        
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to generate caption",
+            )
+
         return CaptionResponse(caption=caption)
-        
+
     except HTTPException:
         raise
     except Exception as ex:
-        log.error(f"Unhandled exception in generate_caption_upload: {ex}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Caption generation failed: {str(ex)}")
+        log.error(
+            "Unhandled exception in generate_caption_upload: %s",
+            ex,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Caption generation failed: {str(ex)}",
+        )
 
 
 @app.post("/generate-caption", response_model=CaptionResponse)
@@ -214,36 +248,54 @@ async def generate_caption_endpoint(request: CaptionRequest) -> CaptionResponse:
         raise HTTPException(status_code=400, detail="imageUrl is required.")
 
     target_url = normalize_image_url(request.imageUrl.strip())
-    log.info(f"Fetching image from: {target_url}")
+    log.info("Fetching image from: %s", target_url)
 
     try:
         async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
             response = await client.get(target_url)
             response.raise_for_status()
         image_bytes = response.content
-        log.info(f"Image downloaded successfully ({len(image_bytes)} bytes)")
+        log.info("Image downloaded successfully (%s bytes)", len(image_bytes))
     except Exception as ex:
-        log.error(f"Failed to download image from {target_url}: {ex}", exc_info=True)
-        raise HTTPException(status_code=502, detail=f"Failed to download image: {ex}") from ex
+        log.error(
+            "Failed to download image from %s: %s",
+            target_url,
+            ex,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail=f"Failed to download image: {ex}",
+        ) from ex
 
     try:
         log.debug("Reading image...")
         image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-        
+
         log.debug("Loading model...")
         model, processor = ensure_model_loaded()
-        
+
         log.debug("Generating caption...")
         caption = generate_caption(image, model, processor)
-        
+
         if not caption:
-            raise HTTPException(status_code=500, detail="Failed to generate caption")
-        
-        log.info(f"Caption generated successfully: '{caption}'")
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to generate caption",
+            )
+
+        log.info("Caption generated successfully: '%s'", caption)
         return CaptionResponse(caption=caption)
-        
+
     except HTTPException:
         raise
     except Exception as ex:
-        log.error(f"Unhandled exception in generate_caption_endpoint: {ex}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Caption generation failed: {str(ex)}")
+        log.error(
+            "Unhandled exception in generate_caption_endpoint: %s",
+            ex,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Caption generation failed: {str(ex)}",
+        )

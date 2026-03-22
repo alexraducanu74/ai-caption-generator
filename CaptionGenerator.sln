@@ -1,5 +1,4 @@
-﻿﻿
-Microsoft Visual Studio Solution File, Format Version 12.00
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Domain", "Domain", "{1C8967B6-73E4-4325-8F8D-183D946D8278}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Application", "Application", "{FB521F91-1832-484A-8C0C-321AE13D8891}"
@@ -37,8 +36,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "caption-service", "caption-
 		caption-service\main.py = caption-service\main.py
 		caption-service\requirements.txt = caption-service\requirements.txt
 		caption-service\Dockerfile = caption-service\Dockerfile
-		caption-service\README.md = caption-service\README.md
-		caption-service\test_client.py = caption-service\test_client.py
+		caption-service\tests\test_main.py = caption-service\tests\test_main.py
 	EndProjectSection
 EndProject
 Global
