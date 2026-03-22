@@ -27,9 +27,9 @@ public class RegisterPostValidatorTests
     }
 
     [Fact]
-    public async Task Validate_WithCaptionExceeding100Chars_ShouldFail()
+    public async Task Validate_WithCaptionExceeding280Chars_ShouldFail()
     {
-        var longCaption = new string('a', 101);
+        var longCaption = new string('a', 281);
         var command = new RegisterPostCommand(longCaption, SocialPlatform.Facebook, "https://cdn.example.com/test.jpg");
         var result = await _validator.ValidateAsync(command);
         result.IsValid.Should().BeFalse();

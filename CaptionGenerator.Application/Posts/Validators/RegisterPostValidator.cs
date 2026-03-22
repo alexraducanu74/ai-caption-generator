@@ -1,14 +1,15 @@
 ﻿using CaptionGenerator.Application.Posts.Commands;
-using CaptionGenerator.Domain.Enums;
 using FluentValidation;
 
 namespace CaptionGenerator.Application.Posts.Validators;
 
 public class RegisterPostValidator : AbstractValidator<RegisterPostCommand>
 {
+    private const int MaxCaptionLength = 280;
+
     public RegisterPostValidator()
     {
-        RuleFor(p => p.caption).MaximumLength(100).NotEmpty();
+        RuleFor(p => p.caption).MaximumLength(MaxCaptionLength).NotEmpty();
         RuleFor(p => p.platform).IsInEnum();
         RuleFor(p => p.imageUrl)
             .NotEmpty()

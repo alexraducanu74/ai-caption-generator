@@ -141,7 +141,7 @@ using (var scope = app.Services.CreateScope())
         await dbContext.Database.ExecuteSqlRawAsync(@"
             CREATE TABLE IF NOT EXISTS ""Posts"" (
                 ""Id"" uuid NOT NULL,
-                ""Caption"" character varying(100) NOT NULL,
+                ""Caption"" character varying(280) NOT NULL,
                 ""Platform"" integer NOT NULL,
                 ""ImageUrl"" text NOT NULL,
                 ""CreatedAtUtc"" timestamp with time zone NOT NULL,

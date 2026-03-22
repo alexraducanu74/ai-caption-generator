@@ -16,6 +16,7 @@ app = FastAPI(title="Caption Generator Service", version="5.0.0")
 
 # Vision-Language Model (LLaVA - sees image + generates captions directly)
 MODEL_NAME = os.getenv("MODEL_NAME", "llava-hf/llava-1.5-7b-hf")
+CAPTION_MAX_LENGTH = int(os.getenv("CAPTION_MAX_LENGTH", "280"))
 
 # Model and processor
 _model: Any | None = None
@@ -94,7 +95,7 @@ def generate_caption(image: Image.Image, model: Any, processor: Any) -> str:
         # LLaVA 1.5 expects an explicit image placeholder token in the prompt.
         user_instruction = (
             "Write an engaging social media caption for this image. "
-            "Be accurate to what you see and keep it under 100 characters. "
+            f"Be accurate to what you see and keep it under {CAPTION_MAX_LENGTH} characters. "
             "Output only the caption."
         )
         prompt = f"USER: <image>\n{user_instruction}\nASSISTANT:"
@@ -139,9 +140,7 @@ def generate_caption(image: Image.Image, model: Any, processor: Any) -> str:
         if caption and caption[0].islower():
             caption = caption[0].upper() + caption[1:]
 
-        if len(caption) > 100:
-            caption = caption[:97] + "..."
-
+        # Keep full model output; API/domain validation enforces max storage length.
         log.info(f"Final caption: '{caption}'")
         return caption
 
@@ -195,7 +194,7 @@ async def generate_caption_upload(file: UploadFile = File(...)) -> CaptionRespon
         if not caption:
             raise HTTPException(status_code=500, detail="Failed to generate caption")
         
-        return CaptionResponse(caption=caption[:100])
+        return CaptionResponse(caption=caption)
         
     except HTTPException:
         raise
@@ -237,7 +236,7 @@ async def generate_caption_endpoint(request: CaptionRequest) -> CaptionResponse:
             raise HTTPException(status_code=500, detail="Failed to generate caption")
         
         log.info(f"Caption generated successfully: '{caption}'")
-        return CaptionResponse(caption=caption[:100])
+        return CaptionResponse(caption=caption)
         
     except HTTPException:
         raise

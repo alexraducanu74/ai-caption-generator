@@ -79,7 +79,7 @@ public class IntegrationTestFactory : WebApplicationFactory<Program>, IAsyncLife
                 ? "Generated test caption"
                 : $"Generated test caption for {suffix}";
 
-            return Task.FromResult<(bool Success, string? Caption, string? ErrorMessage)>((true, caption[..Math.Min(100, caption.Length)], null));
+            return Task.FromResult<(bool Success, string? Caption, string? ErrorMessage)>((true, caption, null));
         }
 
         public Task<(bool Success, string? Caption, string? ErrorMessage)> GenerateCaptionFromBytesAsync(byte[] imageBytes, string fileName, CancellationToken cancellationToken)
@@ -89,7 +89,7 @@ public class IntegrationTestFactory : WebApplicationFactory<Program>, IAsyncLife
                 ? "Generated test caption"
                 : $"Generated test caption for {suffix}";
 
-            return Task.FromResult<(bool Success, string? Caption, string? ErrorMessage)>((true, caption[..Math.Min(100, caption.Length)], null));
+            return Task.FromResult<(bool Success, string? Caption, string? ErrorMessage)>((true, caption, null));
         }
     }
 }
