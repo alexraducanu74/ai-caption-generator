@@ -1,4 +1,4 @@
-﻿using CaptionGenerator.API.Models;
+﻿﻿using CaptionGenerator.API.Models;
 using CaptionGenerator.API.Models.Requests;
 using CaptionGenerator.API.Services;
 using CaptionGenerator.Application.Posts.Commands;
@@ -118,6 +118,25 @@ public class PostsController : ControllerBase
 
         var response = new PostResponse(post.id, post.caption, post.platform, post.status, post.imageUrl, post.createdAtUtc);
         return Ok(ApiResponse<PostResponse>.SuccessResponse(response, "Post retrieved successfully"));
+    }
+
+    /// <summary>
+    /// Update a post by ID
+    /// </summary>
+    [HttpPut("{id}")]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(object), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdatePost(Guid id, [FromBody] UpdatePostRequest request)
+    {
+        var command = new UpdatePostCommand(id, request.Caption, request.ImageUrl);
+        var result = await _mediator.Send(command);
+
+        if (!result)
+        {
+            return NotFound(ApiResponse<object>.ErrorResponse("Post not found"));
+        }
+
+        return Ok(ApiResponse<object>.SuccessResponse(new { }, "Post updated successfully"));
     }
 
     /// <summary>

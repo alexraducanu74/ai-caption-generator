@@ -1,4 +1,4 @@
-﻿using CaptionGenerator.Application.Abstractions;
+﻿﻿using CaptionGenerator.Application.Abstractions;
 using CaptionGenerator.Domain.Entities;
 using CaptionGenerator.Infrastructure.Persistence;
 
@@ -21,6 +21,12 @@ public class PostsRepository : IPostsRepository
     public async Task<Post?> FindAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await _context.Posts.FindAsync(new object[] { id }, cancellationToken).AsTask();
+    }
+
+    public async Task UpdateAsync(Post post, CancellationToken cancellationToken = default)
+    {
+        _context.Posts.Update(post);
+        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task DeleteAsync(Post post, CancellationToken cancellationToken = default)

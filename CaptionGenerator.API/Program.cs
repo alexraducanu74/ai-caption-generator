@@ -82,6 +82,7 @@ builder.Services.AddMediatR(cfg =>
 
 // FluentValidation
 builder.Services.AddScoped<IValidator<RegisterPostCommand>, RegisterPostValidator>();
+builder.Services.AddScoped<IValidator<UpdatePostCommand>, UpdatePostValidator>();
 
 // MediatR validation pipeline
 builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));

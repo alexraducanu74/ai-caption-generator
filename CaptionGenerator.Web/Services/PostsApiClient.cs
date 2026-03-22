@@ -69,6 +69,50 @@ public class PostsApiClient
         }
     }
 
+    public async Task<(bool Success, string Message)> UpdatePostAsync(Guid id, UpdatePostRequest request)
+    {
+        try
+        {
+            await ApplyAuthHeaderAsync();
+
+            var response = await _httpClient.PutAsJsonAsync($"api/v1/posts/{id}", request);
+            var payload = await SafeReadJsonAsync<ApiResponse<object>>(response);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return (false, payload?.Message ?? $"Update post failed (HTTP {(int)response.StatusCode}).");
+            }
+
+            return (true, payload?.Message ?? "Post updated successfully.");
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Update post error: {ex.Message}");
+        }
+    }
+
+    public async Task<(bool Success, string Message)> DeletePostAsync(Guid id)
+    {
+        try
+        {
+            await ApplyAuthHeaderAsync();
+
+            var response = await _httpClient.DeleteAsync($"api/v1/posts/{id}");
+            var payload = await SafeReadJsonAsync<ApiResponse<object>>(response);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return (false, payload?.Message ?? $"Delete post failed (HTTP {(int)response.StatusCode}).");
+            }
+
+            return (true, payload?.Message ?? "Post deleted successfully.");
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Delete post error: {ex.Message}");
+        }
+    }
+
     public async Task<List<PostResponse>> GetPostsAsync()
     {
         try

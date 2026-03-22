@@ -1,6 +1,7 @@
 ﻿@page "/posts"
 @inject AuthStateStore AuthStateStore
 @inject PostsApiClient PostsApiClient
+@inject IJSRuntime JS
 
 <PageTitle>Posts</PageTitle>
 
@@ -72,13 +73,58 @@ else
                     {
                         @foreach (var post in _posts.OrderByDescending(p => p.CreatedAtUtc))
                         {
-                            <div class="border rounded p-2 mb-2">
-                                <div class="d-flex justify-content-between">
-                                    <strong>@post.Platform</strong>
+                            var isEditing = _editingPostId == post.Id;
+                            var isBusy = _busyPostIds.Contains(post.Id);
+
+                            <div class="border rounded p-3 mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <strong>@post.Platform</strong>
+                                        <span class="badge text-bg-light">@post.Status</span>
+                                    </div>
                                     <small class="text-muted">@post.CreatedAtUtc.ToLocalTime()</small>
                                 </div>
-                                <p class="mb-2">@post.Caption</p>
-                                <img src="@post.ImageUrl" alt="post image" class="img-fluid rounded" style="max-height: 180px;" />
+
+                                @if (isEditing)
+                                {
+                                    <div class="mb-2">
+                                        <label class="form-label mb-1">Caption</label>
+                                        <InputTextArea class="form-control" @bind-Value="_editForm.Caption" rows="2" />
+                                        <small class="text-muted">@_editForm.Caption.Length / 280</small>
+                                    </div>
+
+                                    <div class="mb-2">
+                                        <label class="form-label mb-1">Replace image (optional)</label>
+                                        <InputFile OnChange="OnEditImageSelected" accept=".jpg,.jpeg,.png,.webp" />
+                                        @if (_editSelectedImage is not null)
+                                        {
+                                            <small class="d-block text-muted mt-1">Selected: @_editSelectedImage.Name</small>
+                                        }
+                                    </div>
+
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <button class="btn btn-sm btn-primary" disabled="@isBusy" @onclick="() => SaveEditAsync(post)">
+                                            @(isBusy ? "Saving..." : "Save")
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-secondary" disabled="@isBusy" @onclick="CancelEdit">
+                                            Cancel
+                                        </button>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <p class="mb-2">@post.Caption</p>
+                                    <img src="@post.ImageUrl" alt="post image" class="img-fluid rounded mb-2" style="max-height: 180px;" />
+
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <button class="btn btn-sm btn-outline-primary" disabled="@isBusy" @onclick="() => StartEdit(post)">
+                                            Edit
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" disabled="@isBusy" @onclick="() => DeletePostAsync(post)">
+                                            @(isBusy ? "Deleting..." : "Delete")
+                                        </button>
+                                    </div>
+                                }
                             </div>
                         }
                     }
@@ -90,8 +136,12 @@ else
 
 @code {
     private readonly CreatePostForm _form = new();
+    private readonly EditPostForm _editForm = new();
     private readonly List<PostResponse> _posts = [];
+    private readonly HashSet<Guid> _busyPostIds = [];
     private IBrowserFile? _selectedImage;
+    private IBrowserFile? _editSelectedImage;
+    private Guid? _editingPostId;
     private bool _ready;
     private bool _submitting;
     private bool _isError;
@@ -121,6 +171,123 @@ else
     private void OnImageSelected(InputFileChangeEventArgs args)
     {
         _selectedImage = args.File;
+    }
+
+    private void OnEditImageSelected(InputFileChangeEventArgs args)
+    {
+        _editSelectedImage = args.File;
+    }
+
+    private void StartEdit(PostResponse post)
+    {
+        _editingPostId = post.Id;
+        _editSelectedImage = null;
+        _editForm.Caption = post.Caption;
+    }
+
+    private void CancelEdit()
+    {
+        _editingPostId = null;
+        _editSelectedImage = null;
+        _editForm.Caption = string.Empty;
+    }
+
+    private async Task SaveEditAsync(PostResponse post)
+    {
+        _message = null;
+        _isError = false;
+
+        if (string.IsNullOrWhiteSpace(_editForm.Caption))
+        {
+            _isError = true;
+            _message = "Caption is required.";
+            return;
+        }
+
+        if (_editForm.Caption.Length > 280)
+        {
+            _isError = true;
+            _message = "Caption must be at most 280 characters.";
+            return;
+        }
+
+        _busyPostIds.Add(post.Id);
+
+        try
+        {
+            var imageUrl = post.ImageUrl;
+
+            if (_editSelectedImage is not null)
+            {
+                var uploadResult = await PostsApiClient.UploadImageAsync(_editSelectedImage);
+                if (!uploadResult.Success || string.IsNullOrWhiteSpace(uploadResult.ImageUrl))
+                {
+                    _isError = true;
+                    _message = uploadResult.Message;
+                    return;
+                }
+
+                imageUrl = uploadResult.ImageUrl;
+            }
+
+            var updateResult = await PostsApiClient.UpdatePostAsync(post.Id, new UpdatePostRequest(_editForm.Caption.Trim(), imageUrl));
+            _isError = !updateResult.Success;
+            _message = updateResult.Message;
+
+            if (updateResult.Success)
+            {
+                CancelEdit();
+                await LoadPostsAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _isError = true;
+            _message = $"Unexpected error: {ex.Message}";
+        }
+        finally
+        {
+            _busyPostIds.Remove(post.Id);
+        }
+    }
+
+    private async Task DeletePostAsync(PostResponse post)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", "Delete this post?");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        _message = null;
+        _isError = false;
+        _busyPostIds.Add(post.Id);
+
+        try
+        {
+            var deleteResult = await PostsApiClient.DeletePostAsync(post.Id);
+            _isError = !deleteResult.Success;
+            _message = deleteResult.Message;
+
+            if (deleteResult.Success)
+            {
+                if (_editingPostId == post.Id)
+                {
+                    CancelEdit();
+                }
+
+                await LoadPostsAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _isError = true;
+            _message = $"Unexpected error: {ex.Message}";
+        }
+        finally
+        {
+            _busyPostIds.Remove(post.Id);
+        }
     }
 
     private async Task CreatePostAsync()
@@ -174,5 +341,12 @@ else
     {
         [Range(0, 1)]
         public int Platform { get; set; }
+    }
+
+    private sealed class EditPostForm
+    {
+        [Required]
+        [MaxLength(280)]
+        public string Caption { get; set; } = string.Empty;
     }
 }

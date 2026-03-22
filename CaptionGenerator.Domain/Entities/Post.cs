@@ -1,4 +1,4 @@
-﻿using CaptionGenerator.Domain.Enums;
+﻿﻿using CaptionGenerator.Domain.Enums;
 
 namespace CaptionGenerator.Domain.Entities;
 
@@ -38,6 +38,22 @@ public class Post
     public string ImageUrl { get; private set; } = string.Empty;
     public DateTime CreatedAtUtc { get; private set; }
     public PostStatus Status { get; private set; }
+
+    public void UpdateDetails(string caption, string imageUrl)
+    {
+        if (string.IsNullOrWhiteSpace(caption))
+        {
+            throw new ArgumentNullException(nameof(caption));
+        }
+
+        if (string.IsNullOrWhiteSpace(imageUrl))
+        {
+            throw new ArgumentNullException(nameof(imageUrl));
+        }
+
+        Caption = caption;
+        ImageUrl = imageUrl;
+    }
 
     public void MarkAsPublished()
     {

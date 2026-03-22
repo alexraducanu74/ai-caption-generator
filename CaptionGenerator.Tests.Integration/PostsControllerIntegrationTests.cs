@@ -1,4 +1,4 @@
-﻿﻿using System.Net;
+﻿using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using CaptionGenerator.API.Models;
@@ -86,6 +86,53 @@ public class PostsControllerIntegrationTests : IClassFixture<IntegrationTestFact
     }
 
     [Fact]
+    public async Task UpdatePost_WithValidRequest_ShouldReturn200AndPersistChanges()
+    {
+        await AuthenticateAsync();
+
+        var postId = await CreatePostAsync();
+        var updateRequest = new UpdatePostRequest("Updated caption", "https://cdn.example.com/updated.jpg");
+
+        var updateResponse = await _client.PutAsJsonAsync($"/api/v1/posts/{postId}", updateRequest);
+        updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var getResponse = await _client.GetAsync($"/api/v1/posts/{postId}");
+        getResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var payload = await getResponse.Content.ReadFromJsonAsync<ApiResponse<PostResponse>>();
+        payload.Should().NotBeNull();
+        payload!.Data.Should().NotBeNull();
+        payload.Data!.Caption.Should().Be("Updated caption");
+        payload.Data.ImageUrl.Should().Be("https://cdn.example.com/updated.jpg");
+    }
+
+    [Fact]
+    public async Task UpdatePost_WithInvalidId_ShouldReturn404NotFound()
+    {
+        await AuthenticateAsync();
+
+        var invalidId = Guid.NewGuid();
+        var updateRequest = new UpdatePostRequest("Updated caption", "https://cdn.example.com/updated.jpg");
+
+        var response = await _client.PutAsJsonAsync($"/api/v1/posts/{invalidId}", updateRequest);
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task DeletePost_WithExistingId_ShouldReturn200AndPostShouldNotBeFound()
+    {
+        await AuthenticateAsync();
+
+        var postId = await CreatePostAsync();
+
+        var deleteResponse = await _client.DeleteAsync($"/api/v1/posts/{postId}");
+        deleteResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var getResponse = await _client.GetAsync($"/api/v1/posts/{postId}");
+        getResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
     public async Task GetAllPosts_WithoutToken_ShouldReturn401Unauthorized()
     {
         _client.DefaultRequestHeaders.Authorization = null;
@@ -93,6 +140,19 @@ public class PostsControllerIntegrationTests : IClassFixture<IntegrationTestFact
         var response = await _client.GetAsync("/api/v1/posts");
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    private async Task<Guid> CreatePostAsync()
+    {
+        var request = new RegisterPostRequest(1, $"https://cdn.example.com/{Guid.NewGuid():N}.jpg");
+        var response = await _client.PostAsJsonAsync("/api/v1/posts", request);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var payload = await response.Content.ReadFromJsonAsync<ApiResponse<Guid>>();
+        payload.Should().NotBeNull();
+        payload!.Data.Should().NotBe(Guid.Empty);
+
+        return payload.Data;
     }
 
     private async Task AuthenticateAsync()

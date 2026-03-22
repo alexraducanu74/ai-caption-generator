@@ -1,4 +1,4 @@
-﻿using CaptionGenerator.Domain.Entities;
+﻿﻿using CaptionGenerator.Domain.Entities;
 using CaptionGenerator.Domain.Enums;
 using FluentAssertions;
 
@@ -49,5 +49,32 @@ public class PostEntityTests
         post.MarkAsPublished();
 
         post.Status.Should().Be(PostStatus.Published);
+    }
+
+    [Fact]
+    public void UpdateDetails_WithValidValues_ShouldUpdateCaptionAndImageUrl()
+    {
+        var post = Post.Create("Old", SocialPlatform.Instagram, "https://cdn.example.com/old.jpg");
+
+        post.UpdateDetails("New", "https://cdn.example.com/new.jpg");
+
+        post.Caption.Should().Be("New");
+        post.ImageUrl.Should().Be("https://cdn.example.com/new.jpg");
+    }
+
+    [Fact]
+    public void UpdateDetails_WithEmptyCaption_ShouldThrowArgumentNullException()
+    {
+        var post = Post.Create("Old", SocialPlatform.Instagram, "https://cdn.example.com/old.jpg");
+
+        Assert.Throws<ArgumentNullException>(() => post.UpdateDetails("", "https://cdn.example.com/new.jpg"));
+    }
+
+    [Fact]
+    public void UpdateDetails_WithEmptyImageUrl_ShouldThrowArgumentNullException()
+    {
+        var post = Post.Create("Old", SocialPlatform.Instagram, "https://cdn.example.com/old.jpg");
+
+        Assert.Throws<ArgumentNullException>(() => post.UpdateDetails("New", ""));
     }
 }
