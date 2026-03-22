@@ -94,9 +94,13 @@ def generate_caption(image: Image.Image, model: Any, processor: Any) -> str:
 
         # LLaVA 1.5 expects an explicit image placeholder token in the prompt.
         user_instruction = (
-            "Write an engaging social media caption for this image. "
-            f"Be accurate to what you see and keep it under {CAPTION_MAX_LENGTH} characters. "
-            "Output only the caption."
+            "You are a professional social media caption writer.\n"
+            "Task: Write one engaging, natural caption for the provided image.\n"
+            "Rules:\n"
+            "1) Do not hallucinate. Only describe what is clearly visible in the image.\n"
+            "2) Be specific, concise, and friendly for social media.\n"
+            f"3) Keep the caption under {CAPTION_MAX_LENGTH} characters.\n"
+            "4) Return only the caption text, with no labels or explanations."
         )
         prompt = f"USER: <image>\n{user_instruction}\nASSISTANT:"
         log.debug(f"Prompt: {prompt}")
