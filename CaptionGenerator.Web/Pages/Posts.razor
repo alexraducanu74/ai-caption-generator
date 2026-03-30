@@ -71,9 +71,15 @@ else
         <div class="col-lg-7">
             <div class="surface-card">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3 gap-2 flex-wrap">
                         <h5 class="card-title mb-0">Recent posts</h5>
-                        <button class="btn btn-sm btn-outline-secondary" @onclick="LoadPostsAsync">Refresh</button>
+                        <div class="d-flex align-items-center gap-2">
+                            <label class="small text-muted mb-0" for="createdAtSort">Sort by time</label>
+                            <InputSelect id="createdAtSort" class="form-select form-select-sm" style="width: 170px;" @bind-Value="_createdAtSortOrder">
+                                <option value="@CreatedAtSortOrder.Descending">Newest first</option>
+                                <option value="@CreatedAtSortOrder.Ascending">Oldest first</option>
+                            </InputSelect>
+                        </div>
                     </div>
 
                     @if (_posts.Count == 0)
@@ -82,7 +88,7 @@ else
                     }
                     else
                     {
-                        @foreach (var post in _posts.OrderByDescending(p => p.CreatedAtUtc))
+                        @foreach (var post in SortedPosts)
                         {
                             var isEditing = _editingPostId == post.Id;
                             var isBusy = _busyPostIds.Contains(post.Id);
@@ -157,6 +163,11 @@ else
     private bool _submitting;
     private bool _isError;
     private string? _message;
+    private CreatedAtSortOrder _createdAtSortOrder = CreatedAtSortOrder.Descending;
+
+    private IEnumerable<PostResponse> SortedPosts => _createdAtSortOrder == CreatedAtSortOrder.Ascending
+        ? _posts.OrderBy(p => p.CreatedAtUtc)
+        : _posts.OrderByDescending(p => p.CreatedAtUtc);
 
     protected override async Task OnInitializedAsync()
     {
@@ -359,5 +370,11 @@ else
         [Required]
         [MaxLength(280)]
         public string Caption { get; set; } = string.Empty;
+    }
+
+    private enum CreatedAtSortOrder
+    {
+        Descending,
+        Ascending
     }
 }

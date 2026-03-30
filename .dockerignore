@@ -1,6 +1,8 @@
 ﻿.dockerignore
 bin/
 obj/
+**/bin/
+**/obj/
 .git
 .gitignore
 .idea/

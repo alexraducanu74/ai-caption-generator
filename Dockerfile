@@ -7,11 +7,14 @@ COPY ["CaptionGenerator.Application/CaptionGenerator.Application.csproj", "Capti
 COPY ["CaptionGenerator.Domain/CaptionGenerator.Domain.csproj", "CaptionGenerator.Domain/"]
 COPY ["CaptionGenerator.Infrastructure/CaptionGenerator.Infrastructure.csproj", "CaptionGenerator.Infrastructure/"]
 
-# Restore dependencies
+# Restore dependencies for layer caching (project-only copy)
 RUN dotnet restore "CaptionGenerator.API/CaptionGenerator.API.csproj"
 
 # Copy source code (includes migrations)
 COPY . .
+
+# Re-restore after full source copy to regenerate assets inside Linux container
+RUN dotnet restore "CaptionGenerator.API/CaptionGenerator.API.csproj"
 
 # Publish
 FROM build AS publish
