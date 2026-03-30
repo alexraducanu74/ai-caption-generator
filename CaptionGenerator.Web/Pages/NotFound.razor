@@ -1,5 +1,16 @@
 ﻿@page "/not-found"
 @layout MainLayout
 
-<h3>Not Found</h3>
-<p>The page does not exist. Use <a href="/login">login</a> or <a href="/register">register</a>.</p>
+<PageTitle>Not Found</PageTitle>
+
+<div class="page-header">
+    <h1 class="page-title">Page not found</h1>
+    <p class="page-subtitle">The link is invalid or the page has moved.</p>
+</div>
+
+<div class="surface-card">
+    <div class="card-body">
+        <a class="btn btn-primary me-2" href="/">Home</a>
+        <a class="btn btn-outline-secondary" href="/login">Login</a>
+    </div>
+</div>

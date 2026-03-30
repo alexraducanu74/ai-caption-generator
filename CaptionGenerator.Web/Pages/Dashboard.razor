@@ -1,0 +1,205 @@
+﻿@page "/dashboard"
+@inject AuthStateStore AuthStateStore
+@inject PostsApiClient PostsApiClient
+
+<PageTitle>Dashboard</PageTitle>
+
+<div class="page-header">
+    <h1 class="page-title">Dashboard</h1>
+    <p class="page-subtitle">Quick stats for your generated social posts.</p>
+</div>
+
+@if (!_ready)
+{
+    <div class="surface-card">
+        <div class="card-body">Loading dashboard...</div>
+    </div>
+}
+else if (!AuthStateStore.IsAuthenticated)
+{
+    <div class="surface-card">
+        <div class="card-body">
+            <h5 class="mb-2">Login required</h5>
+            <p class="text-muted mb-3">Please sign in to view your dashboard.</p>
+            <a class="btn btn-primary" href="/login">Go to login</a>
+        </div>
+    </div>
+}
+else
+{
+    <div class="row g-3 mb-3">
+        <div class="col-6 col-lg-3">
+            <div class="surface-card kpi-card">
+                <div class="card-body">
+                    <p class="kpi-value">@_posts.Count</p>
+                    <p class="kpi-label">Total posts</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="surface-card kpi-card">
+                <div class="card-body">
+                    <p class="kpi-value">@_todayCount</p>
+                    <p class="kpi-label">Created today</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="surface-card kpi-card">
+                <div class="card-body">
+                    <p class="kpi-value">@_statusCounts.GetValueOrDefault("Published", 0)</p>
+                    <p class="kpi-label">Published</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="surface-card kpi-card">
+                <div class="card-body">
+                    <p class="kpi-value">@_statusCounts.GetValueOrDefault("Draft", 0)</p>
+                    <p class="kpi-label">Draft</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="surface-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">Posts by platform</h5>
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="LoadDashboardAsync">Refresh</button>
+                    </div>
+
+                    @if (_platformCounts.Count == 0)
+                    {
+                        <p class="text-muted mb-0">No post data yet.</p>
+                    }
+                    else
+                    {
+                        <div class="bar-list">
+                            @foreach (var item in _platformCounts)
+                            {
+                                <div class="bar-item">
+                                    <span>@item.Key</span>
+                                    <div class="bar-track">
+                                        <div class="bar-fill" style="width: @Percent(item.Value, _platformMax)%"></div>
+                                    </div>
+                                    <strong>@item.Value</strong>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="surface-card">
+                <div class="card-body">
+                    <h5 class="mb-3">Last 7 days activity</h5>
+                    <div class="chart-grid">
+                        @foreach (var point in _weeklyActivity)
+                        {
+                            <div class="chart-row">
+                                <span>@point.Label</span>
+                                <div class="bar-track">
+                                    <div class="bar-fill" style="width: @Percent(point.Value, _weeklyMax)%"></div>
+                                </div>
+                                <strong>@point.Value</strong>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private readonly List<PostResponse> _posts = [];
+    private readonly Dictionary<string, int> _platformCounts = new();
+    private readonly Dictionary<string, int> _statusCounts = new();
+    private readonly List<ActivityPoint> _weeklyActivity = [];
+
+    private int _todayCount;
+    private int _platformMax = 1;
+    private int _weeklyMax = 1;
+    private bool _ready;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthStateStore.InitializeAsync();
+
+        if (!AuthStateStore.IsAuthenticated)
+        {
+            _ready = true;
+            return;
+        }
+
+        await LoadDashboardAsync();
+        _ready = true;
+    }
+
+    private async Task LoadDashboardAsync()
+    {
+        var posts = await PostsApiClient.GetPostsAsync();
+        _posts.Clear();
+        _posts.AddRange(posts);
+
+        BuildPlatformCounts();
+        BuildStatusCounts();
+        BuildWeeklyActivity();
+
+        _todayCount = _posts.Count(p => p.CreatedAtUtc.ToLocalTime().Date == DateTime.Today);
+    }
+
+    private void BuildPlatformCounts()
+    {
+        _platformCounts.Clear();
+
+        foreach (var group in _posts.GroupBy(p => p.Platform))
+        {
+            _platformCounts[group.Key] = group.Count();
+        }
+
+        _platformMax = Math.Max(1, _platformCounts.Values.DefaultIfEmpty(0).Max());
+    }
+
+    private void BuildStatusCounts()
+    {
+        _statusCounts.Clear();
+
+        foreach (var group in _posts.GroupBy(p => p.Status))
+        {
+            _statusCounts[group.Key] = group.Count();
+        }
+    }
+
+    private void BuildWeeklyActivity()
+    {
+        _weeklyActivity.Clear();
+        var localPosts = _posts.Select(p => p.CreatedAtUtc.ToLocalTime()).ToList();
+
+        for (var daysAgo = 6; daysAgo >= 0; daysAgo--)
+        {
+            var day = DateTime.Today.AddDays(-daysAgo);
+            var count = localPosts.Count(p => p.Date == day);
+            _weeklyActivity.Add(new ActivityPoint(day.ToString("ddd"), count));
+        }
+
+        _weeklyMax = Math.Max(1, _weeklyActivity.Select(a => a.Value).DefaultIfEmpty(0).Max());
+    }
+
+    private static int Percent(int value, int max)
+    {
+        if (max <= 0)
+        {
+            return 0;
+        }
+
+        return (int)Math.Round((double)value / max * 100);
+    }
+
+    private sealed record ActivityPoint(string Label, int Value);
+}

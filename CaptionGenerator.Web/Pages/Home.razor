@@ -5,33 +5,41 @@
 
 <PageTitle>Home</PageTitle>
 
-@if (!_ready)
-{
-    <p>Loading...</p>
-}
-else if (!AuthStateStore.IsAuthenticated)
-{
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <h5 class="card-title">You are not logged in</h5>
-            <p class="card-text">Please sign in to access protected API endpoints.</p>
-            <a class="btn btn-primary me-2" href="/login">Login</a>
-            <a class="btn btn-outline-secondary" href="/register">Register</a>
-        </div>
+<section class="home-page">
+    <div class="home-page-content">
+        @if (!_ready)
+        {
+            <div class="surface-card home-surface-card">
+                <div class="card-body">Loading session...</div>
+            </div>
+        }
+        else if (!AuthStateStore.IsAuthenticated)
+        {
+            <div class="surface-card home-surface-card">
+                <div class="card-body home-auth-card">
+                    <p class="mb-3 home-auth-title">Generate captions quickly and manage all your posts in one place.</p>
+                    <p class="text-muted mb-4 home-auth-subtitle">Create an account or sign in to start generating and managing posts.</p>
+                    <div class="home-auth-actions">
+                        <a class="btn btn-primary" href="/login">Login</a>
+                        <a class="btn btn-outline-secondary" href="/register">Register</a>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="surface-card home-surface-card">
+                <div class="card-body home-auth-card">
+                    <div class="home-authenticated-actions">
+                        <a class="btn btn-primary" href="/dashboard">Open dashboard</a>
+                        <a class="btn btn-outline-primary" href="/posts">Manage posts</a>
+                        <button class="btn btn-outline-danger" @onclick="LogoutAsync">Logout</button>
+                    </div>
+                </div>
+            </div>
+        }
     </div>
-}
-else
-{
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <h5 class="card-title">Authenticated</h5>
-            <p class="card-text mb-1">Email: @AuthStateStore.Session?.Email</p>
-            <p class="card-text text-muted">Token expires: @AuthStateStore.Session?.ExpiresAtUtc.ToLocalTime()</p>
-            <a class="btn btn-primary me-2" href="/posts">Go to posts</a>
-            <button class="btn btn-outline-danger" @onclick="LogoutAsync">Logout</button>
-        </div>
-    </div>
-}
+</section>
 
 @code {
     private bool _ready;

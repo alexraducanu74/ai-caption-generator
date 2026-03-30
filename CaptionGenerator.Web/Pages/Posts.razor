@@ -5,22 +5,33 @@
 
 <PageTitle>Posts</PageTitle>
 
+<div class="page-header">
+    <h1 class="page-title">Posts</h1>
+    <p class="page-subtitle">Create, update, and delete social posts with generated captions.</p>
+</div>
+
 @if (!_ready)
 {
-    <p>Loading...</p>
+    <div class="surface-card">
+        <div class="card-body">Loading posts...</div>
+    </div>
 }
 else if (!AuthStateStore.IsAuthenticated)
 {
-    <div class="alert alert-warning" role="alert">
-        You must log in to upload images and create posts.
+    <div class="surface-card">
+        <div class="card-body">
+            <div class="alert alert-warning mb-3" role="alert">
+                You must log in to upload images and create posts.
+            </div>
+            <a class="btn btn-primary" href="/login">Go to login</a>
+        </div>
     </div>
-    <a class="btn btn-primary" href="/login">Go to login</a>
 }
 else
 {
     <div class="row g-4">
         <div class="col-lg-5">
-            <div class="card shadow-sm">
+            <div class="surface-card">
                 <div class="card-body">
                     <h5 class="card-title">Create post</h5>
                     <p class="text-muted small">Caption is generated automatically by the backend Python API.</p>
@@ -58,7 +69,7 @@ else
         </div>
 
         <div class="col-lg-7">
-            <div class="card shadow-sm">
+            <div class="surface-card">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5 class="card-title mb-0">Recent posts</h5>
@@ -76,7 +87,7 @@ else
                             var isEditing = _editingPostId == post.Id;
                             var isBusy = _busyPostIds.Contains(post.Id);
 
-                            <div class="border rounded p-3 mb-3">
+                            <div class="border rounded p-3 mb-3 bg-white">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <div class="d-flex align-items-center gap-2">
                                         <strong>@post.Platform</strong>
@@ -114,7 +125,7 @@ else
                                 else
                                 {
                                     <p class="mb-2">@post.Caption</p>
-                                    <img src="@post.ImageUrl" alt="post image" class="img-fluid rounded mb-2" style="max-height: 180px;" />
+                                    <img src="@post.ImageUrl" alt="post image" class="img-fluid rounded mb-2" style="max-height: 180px; object-fit: cover;" />
 
                                     <div class="d-flex flex-wrap gap-2">
                                         <button class="btn btn-sm btn-outline-primary" disabled="@isBusy" @onclick="() => StartEdit(post)">

@@ -1,10 +1,79 @@
 ﻿@inherits LayoutComponentBase
+@implements IDisposable
+@inject AuthStateStore AuthStateStore
+@inject AuthApiClient AuthApiClient
+@inject NavigationManager NavigationManager
 
-<div class="container py-4">
-    <header class="mb-4">
-        <h3 class="mb-0">Caption Generator</h3>
-        <small class="text-muted">Blazor WebAssembly client</small>
-    </header>
+<div class="app-shell">
+    <nav class="navbar navbar-expand-lg app-navbar">
+        <div class="container-fluid app-container">
+            <a class="navbar-brand" href="/">Caption Generator</a>
 
-    @Body
+            <button class="navbar-toggler" type="button" @onclick="ToggleNavbar">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse @NavbarCollapseClass">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item"><NavLink class="nav-link" href="/dashboard">Dashboard</NavLink></li>
+                    <li class="nav-item"><NavLink class="nav-link" href="/posts">Posts</NavLink></li>
+                </ul>
+
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                    @if (AuthStateStore.IsAuthenticated)
+                    {
+                        <li class="nav-item nav-user">@AuthStateStore.Session?.Email</li>
+                        <li class="nav-item">
+                            <button class="btn btn-sm btn-outline-secondary" @onclick="LogoutAsync">Logout</button>
+                        </li>
+                    }
+                    else
+                    {
+                        <li class="nav-item"><NavLink class="nav-link" href="/login">Login</NavLink></li>
+                        <li class="nav-item"><NavLink class="nav-link" href="/register">Register</NavLink></li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main class="app-main">
+        <div class="app-container">
+            @Body
+        </div>
+    </main>
 </div>
+
+@code {
+    private bool _navbarCollapsed = true;
+
+    private string NavbarCollapseClass => _navbarCollapsed ? string.Empty : "show";
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthStateStore.Changed += OnAuthChanged;
+        await AuthStateStore.InitializeAsync();
+    }
+
+    private void ToggleNavbar()
+    {
+        _navbarCollapsed = !_navbarCollapsed;
+    }
+
+    private void OnAuthChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LogoutAsync()
+    {
+        await AuthApiClient.LogoutAsync();
+        _navbarCollapsed = true;
+        NavigationManager.NavigateTo("/login", true);
+    }
+
+    public void Dispose()
+    {
+        AuthStateStore.Changed -= OnAuthChanged;
+    }
+}

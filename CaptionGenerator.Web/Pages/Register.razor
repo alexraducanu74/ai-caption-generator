@@ -4,13 +4,16 @@
 
 <PageTitle>Register</PageTitle>
 
-<div class="card shadow-sm">
-    <div class="card-body">
-        <h4 class="card-title mb-3">Register</h4>
+<div class="page-header">
+    <h1 class="page-title">Create account</h1>
+    <p class="page-subtitle">Register to start generating and managing captions.</p>
+</div>
 
+<div class="surface-card">
+    <div class="card-body">
         @if (!string.IsNullOrWhiteSpace(_message))
         {
-            <div class="alert @( _isError ? "alert-danger" : "alert-success")" role="alert">@_message</div>
+            <div class="alert @(_isError ? "alert-danger" : "alert-success")" role="alert">@_message</div>
         }
 
         <EditForm Model="_form" OnValidSubmit="OnSubmitAsync">

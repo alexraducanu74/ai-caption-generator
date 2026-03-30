@@ -13,13 +13,10 @@ RUN dotnet restore "CaptionGenerator.API/CaptionGenerator.API.csproj"
 # Copy source code (includes migrations)
 COPY . .
 
-# Build
-WORKDIR "/src/CaptionGenerator.API"
-RUN dotnet build "CaptionGenerator.API.csproj" -c Release -o /app/build
-
 # Publish
 FROM build AS publish
-RUN dotnet publish "CaptionGenerator.API.csproj" -c Release -o /app/publish /p:UseAppHost=false
+WORKDIR "/src/CaptionGenerator.API"
+RUN dotnet publish "CaptionGenerator.API.csproj" -c Release -o /app/publish /p:UseAppHost=false --no-restore -m:1 /p:BuildInParallel=false /p:UseSharedCompilation=false
 
 # Runtime
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
