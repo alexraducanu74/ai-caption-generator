@@ -139,16 +139,23 @@ else
     protected override async Task OnInitializedAsync()
     {
         await AuthStateStore.InitializeAsync();
-        await AuthApiClient.ApplyAuthHeaderAsync();
+        _ready = true;
 
         if (!AuthStateStore.IsAuthenticated)
         {
-            _ready = true;
             return;
         }
 
         await LoadDashboardAsync();
-        _ready = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && AuthStateStore.IsAuthenticated)
+        {
+            await AuthApiClient.ApplyAuthHeaderAsync();
+            StateHasChanged();
+        }
     }
 
     private async Task LoadDashboardAsync()

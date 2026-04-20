@@ -79,7 +79,15 @@
     protected override async Task OnInitializedAsync()
     {
         await AuthStateStore.InitializeAsync();
-        await AuthApiClient.ApplyAuthHeaderAsync();
         _ready = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await AuthApiClient.ApplyAuthHeaderAsync();
+            StateHasChanged();
+        }
     }
 }

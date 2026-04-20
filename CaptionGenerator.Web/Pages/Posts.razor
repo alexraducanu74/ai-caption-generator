@@ -198,17 +198,24 @@ else
     protected override async Task OnInitializedAsync()
     {
         await AuthStateStore.InitializeAsync();
-        await AuthApiClient.ApplyAuthHeaderAsync();
+        _ready = true;
 
         if (!AuthStateStore.IsAuthenticated)
         {
-            _ready = true;
             return;
         }
 
         await LoadPostsAsync();
-        _ready = true;
         StartAutoRefresh();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && AuthStateStore.IsAuthenticated)
+        {
+            await AuthApiClient.ApplyAuthHeaderAsync();
+            StateHasChanged();
+        }
     }
 
     private async Task LoadPostsAsync()
