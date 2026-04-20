@@ -6,5 +6,5 @@ public record PostResponse(
     string Platform,
     string Status,
     string ImageUrl,
-    DateTime CreatedAtUtc);
-
+    DateTime CreatedAtUtc,
+    DateTime ScheduledForUtc);

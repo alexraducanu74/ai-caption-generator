@@ -8,6 +8,7 @@ public class AuthStateStore
 {
     private const string StorageKey = "captiongenerator.auth.session";
     private readonly IJSRuntime _jsRuntime;
+    private readonly SemaphoreSlim _initializeLock = new(1, 1);
     private bool _isInitialized;
 
     public AuthSession? Session { get; private set; }
@@ -27,29 +28,46 @@ public class AuthStateStore
             return;
         }
 
-        _isInitialized = true;
-        var payload = await _jsRuntime.InvokeAsync<string?>("localStorage.getItem", StorageKey);
-
-        if (string.IsNullOrWhiteSpace(payload))
-        {
-            return;
-        }
+        await _initializeLock.WaitAsync();
 
         try
         {
-            var session = JsonSerializer.Deserialize<AuthSession>(payload);
-            if (session is null || session.ExpiresAtUtc <= DateTime.UtcNow)
+            if (_isInitialized)
             {
-                await ClearAsync();
                 return;
             }
 
-            Session = session;
-            NotifyChanged();
+            var payload = await _jsRuntime.InvokeAsync<string?>("localStorage.getItem", StorageKey);
+
+            if (string.IsNullOrWhiteSpace(payload))
+            {
+                _isInitialized = true;
+                return;
+            }
+
+            try
+            {
+                var session = JsonSerializer.Deserialize<AuthSession>(payload);
+                if (session is null || session.ExpiresAtUtc <= DateTime.UtcNow)
+                {
+                    await ClearAsync();
+                    _isInitialized = true;
+                    return;
+                }
+
+                Session = session;
+                _isInitialized = true;
+                NotifyChanged();
+            }
+            catch
+            {
+                await ClearAsync();
+                _isInitialized = true;
+            }
         }
-        catch
+        finally
         {
-            await ClearAsync();
+            _initializeLock.Release();
         }
     }
 

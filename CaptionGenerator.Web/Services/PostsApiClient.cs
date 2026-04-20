@@ -134,6 +134,50 @@ public class PostsApiClient
         }
     }
 
+    public async Task<(bool Success, string Message)> ConfirmPostAsync(Guid id)
+    {
+        try
+        {
+            await ApplyAuthHeaderAsync();
+
+            var response = await _httpClient.PostAsync($"api/v1/posts/{id}/confirm", null);
+            var payload = await SafeReadJsonAsync<ApiResponse<object>>(response);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return (false, payload?.Message ?? $"Confirm post failed (HTTP {(int)response.StatusCode}).");
+            }
+
+            return (true, payload?.Message ?? "Post published successfully.");
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Confirm post error: {ex.Message}");
+        }
+    }
+
+    public async Task<(bool Success, string Message)> CancelPostAsync(Guid id)
+    {
+        try
+        {
+            await ApplyAuthHeaderAsync();
+
+            var response = await _httpClient.PostAsync($"api/v1/posts/{id}/cancel", null);
+            var payload = await SafeReadJsonAsync<ApiResponse<object>>(response);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return (false, payload?.Message ?? $"Cancel post failed (HTTP {(int)response.StatusCode}).");
+            }
+
+            return (true, payload?.Message ?? "Post canceled successfully.");
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Cancel post error: {ex.Message}");
+        }
+    }
+
     private static async Task<T?> SafeReadJsonAsync<T>(HttpResponseMessage response)
     {
         try

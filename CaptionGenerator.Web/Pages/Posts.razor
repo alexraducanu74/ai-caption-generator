@@ -1,7 +1,9 @@
 ﻿@page "/posts"
+@implements IDisposable
 @inject AuthStateStore AuthStateStore
+@inject AuthApiClient AuthApiClient
 @inject PostsApiClient PostsApiClient
-@inject IJSRuntime JS
+@inject IJSRuntime Js
 
 <PageTitle>Posts</PageTitle>
 
@@ -54,6 +56,11 @@ else
                         </div>
 
                         <div class="mb-3">
+                            <label class="form-label">Publish schedule</label>
+                            <InputDate class="form-control" Type="InputDateType.DateTimeLocal" @bind-Value="_form.ScheduledForLocal" />
+                        </div>
+
+                        <div class="mb-3">
                             <label class="form-label">Image</label>
                             <InputFile OnChange="OnImageSelected" accept=".jpg,.jpeg,.png,.webp" />
                             @if (_selectedImage is not null)
@@ -97,7 +104,7 @@ else
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <div class="d-flex align-items-center gap-2">
                                         <strong>@post.Platform</strong>
-                                        <span class="badge text-bg-light">@post.Status</span>
+                                        <span class="badge @StatusBadgeClass(post.Status)">@post.Status</span>
                                     </div>
                                     <small class="text-muted">@post.CreatedAtUtc.ToLocalTime()</small>
                                 </div>
@@ -130,10 +137,28 @@ else
                                 }
                                 else
                                 {
-                                    <p class="mb-2">@post.Caption</p>
+                                    <p class="mb-1">@post.Caption</p>
+                                    <small class="d-block text-muted mb-2">Scheduled: @post.ScheduledForUtc.ToLocalTime()</small>
                                     <img src="@post.ImageUrl" alt="post image" class="img-fluid rounded mb-2" style="max-height: 180px; object-fit: cover;" />
 
-                                    <div class="d-flex flex-wrap gap-2">
+                                    @if (post.Status == "PendingConfirmation")
+                                    {
+                                        <div class="post-publish-section">
+                                            <div class="alert alert-warning py-2 mb-0" role="alert">
+                                                <strong>Published?</strong> This post reached its scheduled time.
+                                                <div class="post-publish-actions d-flex flex-wrap gap-2 mt-2">
+                                                    <button class="btn btn-sm btn-success" disabled="@isBusy" @onclick="() => ConfirmPostAsync(post)">
+                                                        Yes
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-danger" disabled="@isBusy" @onclick="() => CancelPostAsync(post)">
+                                                        No
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+
+                                    <div class="post-manage-section d-flex flex-wrap gap-2">
                                         <button class="btn btn-sm btn-outline-primary" disabled="@isBusy" @onclick="() => StartEdit(post)">
                                             Edit
                                         </button>
@@ -164,6 +189,7 @@ else
     private bool _isError;
     private string? _message;
     private CreatedAtSortOrder _createdAtSortOrder = CreatedAtSortOrder.Descending;
+    private CancellationTokenSource? _refreshCts;
 
     private IEnumerable<PostResponse> SortedPosts => _createdAtSortOrder == CreatedAtSortOrder.Ascending
         ? _posts.OrderBy(p => p.CreatedAtUtc)
@@ -172,6 +198,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         await AuthStateStore.InitializeAsync();
+        await AuthApiClient.ApplyAuthHeaderAsync();
 
         if (!AuthStateStore.IsAuthenticated)
         {
@@ -181,6 +208,7 @@ else
 
         await LoadPostsAsync();
         _ready = true;
+        StartAutoRefresh();
     }
 
     private async Task LoadPostsAsync()
@@ -188,6 +216,34 @@ else
         var posts = await PostsApiClient.GetPostsAsync();
         _posts.Clear();
         _posts.AddRange(posts);
+    }
+
+    private void StartAutoRefresh()
+    {
+        _refreshCts?.Cancel();
+        _refreshCts = new CancellationTokenSource();
+        _ = RefreshLoopAsync(_refreshCts.Token);
+    }
+
+    private async Task RefreshLoopAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                if (!AuthStateStore.IsAuthenticated)
+                {
+                    continue;
+                }
+
+                await InvokeAsync(LoadPostsAsync);
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
     }
 
     private void OnImageSelected(InputFileChangeEventArgs args)
@@ -275,7 +331,7 @@ else
 
     private async Task DeletePostAsync(PostResponse post)
     {
-        var confirmed = await JS.InvokeAsync<bool>("confirm", "Delete this post?");
+        var confirmed = await Js.InvokeAsync<bool>("confirm", "Delete this post?");
         if (!confirmed)
         {
             return;
@@ -312,6 +368,44 @@ else
         }
     }
 
+    private async Task ConfirmPostAsync(PostResponse post)
+    {
+        await HandleStatusDecisionAsync(post, () => PostsApiClient.ConfirmPostAsync(post.Id));
+    }
+
+    private async Task CancelPostAsync(PostResponse post)
+    {
+        await HandleStatusDecisionAsync(post, () => PostsApiClient.CancelPostAsync(post.Id));
+    }
+
+    private async Task HandleStatusDecisionAsync(PostResponse post, Func<Task<(bool Success, string Message)>> action)
+    {
+        _message = null;
+        _isError = false;
+        _busyPostIds.Add(post.Id);
+
+        try
+        {
+            var result = await action();
+            _isError = !result.Success;
+            _message = result.Message;
+
+            if (result.Success)
+            {
+                await LoadPostsAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _isError = true;
+            _message = $"Unexpected error: {ex.Message}";
+        }
+        finally
+        {
+            _busyPostIds.Remove(post.Id);
+        }
+    }
+
     private async Task CreatePostAsync()
     {
         _message = null;
@@ -321,6 +415,14 @@ else
         {
             _isError = true;
             _message = "Please select an image before creating the post.";
+            return;
+        }
+
+        var scheduledForUtc = DateTime.SpecifyKind(_form.ScheduledForLocal, DateTimeKind.Local).ToUniversalTime();
+        if (scheduledForUtc <= DateTime.UtcNow)
+        {
+            _isError = true;
+            _message = "Scheduled publish date must be in the future.";
             return;
         }
 
@@ -336,7 +438,7 @@ else
                 return;
             }
 
-            var createResult = await PostsApiClient.CreatePostAsync(new CreatePostRequest(_form.Platform, uploadResult.ImageUrl));
+            var createResult = await PostsApiClient.CreatePostAsync(new CreatePostRequest(_form.Platform, uploadResult.ImageUrl, scheduledForUtc));
 
             _isError = !createResult.Success;
             _message = createResult.Message;
@@ -344,6 +446,7 @@ else
             if (createResult.Success)
             {
                 _form.Platform = 0;
+                _form.ScheduledForLocal = DateTime.Now.AddMinutes(10);
                 _selectedImage = null;
                 await LoadPostsAsync();
             }
@@ -363,6 +466,9 @@ else
     {
         [Range(0, 1)]
         public int Platform { get; set; }
+
+        [Required]
+        public DateTime ScheduledForLocal { get; set; } = DateTime.Now.AddMinutes(10);
     }
 
     private sealed class EditPostForm
@@ -376,5 +482,20 @@ else
     {
         Descending,
         Ascending
+    }
+
+    private static string StatusBadgeClass(string status) => status switch
+    {
+        "Published" => "text-bg-success",
+        "PendingConfirmation" => "text-bg-warning",
+        "Canceled" => "text-bg-danger",
+        "Scheduled" => "text-bg-secondary",
+        _ => "text-bg-light"
+    };
+
+    public void Dispose()
+    {
+        _refreshCts?.Cancel();
+        _refreshCts?.Dispose();
     }
 }

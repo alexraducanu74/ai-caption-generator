@@ -1,4 +1,4 @@
-﻿﻿using CaptionGenerator.Application.Posts.Commands;
+﻿using CaptionGenerator.Application.Posts.Commands;
 using CaptionGenerator.Application.Abstractions;
 using CaptionGenerator.Domain.Entities;
 using CaptionGenerator.Domain.Enums;
@@ -15,7 +15,8 @@ public class RegisterPostCommandHandlerTests
     public async Task Handle_WithValidCommand_ShouldCreatePostAndReturnId()
     {
         var handler = new RegisterPostCommandHandler(_repositoryMock.Object);
-        var command = new RegisterPostCommand("New Post", SocialPlatform.Instagram, "https://cdn.example.com/new.jpg");
+        var scheduledForUtc = DateTime.UtcNow.AddMinutes(20);
+        var command = new RegisterPostCommand("New Post", SocialPlatform.Instagram, "https://cdn.example.com/new.jpg", scheduledForUtc);
 
         var result = await handler.Handle(command, CancellationToken.None);
 
@@ -33,7 +34,8 @@ public class RegisterPostCommandHandlerTests
             .Returns(Task.CompletedTask);
 
         var handler = new RegisterPostCommandHandler(_repositoryMock.Object);
-        var command = new RegisterPostCommand("Test Caption", SocialPlatform.Facebook, "https://cdn.example.com/test.jpg");
+        var scheduledForUtc = DateTime.UtcNow.AddMinutes(20);
+        var command = new RegisterPostCommand("Test Caption", SocialPlatform.Facebook, "https://cdn.example.com/test.jpg", scheduledForUtc);
 
         await handler.Handle(command, CancellationToken.None);
 
@@ -42,5 +44,6 @@ public class RegisterPostCommandHandlerTests
         capturedPost.Caption.Should().Be("Test Caption");
         capturedPost.Platform.Should().Be(SocialPlatform.Facebook);
         capturedPost.ImageUrl.Should().Be("https://cdn.example.com/test.jpg");
+        capturedPost.ScheduledForUtc.Should().BeCloseTo(scheduledForUtc, TimeSpan.FromSeconds(1));
     }
 }

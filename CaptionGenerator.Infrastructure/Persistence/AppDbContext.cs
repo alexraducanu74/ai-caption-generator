@@ -22,6 +22,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             e.Property(p => p.Platform).IsRequired().HasConversion<int>();
             e.Property(p => p.ImageUrl).IsRequired();
             e.Property(p => p.CreatedAtUtc).IsRequired();
+            e.Property(p => p.ScheduledForUtc).IsRequired();
             e.Property(p => p.Status).IsRequired().HasConversion<int>();
         });
     }

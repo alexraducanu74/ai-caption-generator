@@ -15,5 +15,11 @@ public class RegisterPostValidator : AbstractValidator<RegisterPostCommand>
             .NotEmpty()
             .Must(url => Uri.IsWellFormedUriString(url, UriKind.Absolute))
             .WithMessage("Image URL must be a valid absolute URL.");
+
+        RuleFor(p => p.scheduledForUtc)
+            .Must(date => date != default)
+            .WithMessage("Scheduled publish date is required.")
+            .Must(date => date > DateTime.UtcNow)
+            .WithMessage("Scheduled publish date must be in the future.");
     }
 }

@@ -15,7 +15,7 @@ public class UpdatePostCommandHandlerTests
     public async Task Handle_WithExistingPost_ShouldUpdateAndReturnTrue()
     {
         var postId = Guid.NewGuid();
-        var post = Post.Create("Old caption", SocialPlatform.Instagram, "https://cdn.example.com/old.jpg");
+        var post = Post.Create("Old caption", SocialPlatform.Instagram, "https://cdn.example.com/old.jpg", DateTime.UtcNow.AddMinutes(30));
 
         _repositoryMock.Setup(r => r.FindAsync(postId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(post);
@@ -48,4 +48,3 @@ public class UpdatePostCommandHandlerTests
         _repositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Post>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }
-

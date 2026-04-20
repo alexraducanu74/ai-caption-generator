@@ -43,6 +43,9 @@ namespace CaptionGenerator.Infrastructure.Persistence.Migrations
                     b.Property<int>("Platform")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("ScheduledForUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 

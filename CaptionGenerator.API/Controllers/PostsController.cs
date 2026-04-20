@@ -55,7 +55,11 @@ public class PostsController : ControllerBase
                 ApiResponse<object>.ErrorResponse(captionResult.ErrorMessage ?? "Failed to generate caption."));
         }
 
-        var command = new RegisterPostCommand(captionResult.Caption, (SocialPlatform)request.Platform, request.ImageUrl);
+        var command = new RegisterPostCommand(
+            captionResult.Caption,
+            (SocialPlatform)request.Platform,
+            request.ImageUrl,
+            request.ScheduledForUtc);
         var id = await _mediator.Send(command);
         var response = ApiResponse<Guid>.SuccessResponse(id, "Post created successfully");
         return CreatedAtAction(nameof(GetPostById), new { id }, response);
@@ -94,7 +98,7 @@ public class PostsController : ControllerBase
         var query = new GetPostQuery(status);
         var posts = await _mediator.Send(query);
         var response = posts
-            .Select(p => new PostResponse(p.id, p.caption, p.platform, p.status, p.imageUrl, p.createdAtUtc))
+            .Select(p => new PostResponse(p.id, p.caption, p.platform, p.status, p.imageUrl, p.createdAtUtc, p.scheduledForUtc))
             .ToList();
         return Ok(ApiResponse<List<PostResponse>>.SuccessResponse(response, "Posts retrieved successfully"));
     }
@@ -116,7 +120,7 @@ public class PostsController : ControllerBase
             return NotFound(ApiResponse<object>.ErrorResponse("Post not found"));
         }
 
-        var response = new PostResponse(post.id, post.caption, post.platform, post.status, post.imageUrl, post.createdAtUtc);
+        var response = new PostResponse(post.id, post.caption, post.platform, post.status, post.imageUrl, post.createdAtUtc, post.scheduledForUtc);
         return Ok(ApiResponse<PostResponse>.SuccessResponse(response, "Post retrieved successfully"));
     }
 
@@ -156,5 +160,39 @@ public class PostsController : ControllerBase
         }
 
         return Ok(ApiResponse<object>.SuccessResponse(new { }, "Post deleted successfully"));
+    }
+
+    /// <summary>
+    /// Confirm a pending post as published
+    /// </summary>
+    [HttpPost("{id}/confirm")]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(object), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ConfirmPostPublication(Guid id)
+    {
+        var result = await _mediator.Send(new ConfirmPostPublicationCommand(id));
+        if (!result)
+        {
+            return NotFound(ApiResponse<object>.ErrorResponse("Post not found or not pending confirmation."));
+        }
+
+        return Ok(ApiResponse<object>.SuccessResponse(new { }, "Post published successfully"));
+    }
+
+    /// <summary>
+    /// Cancel a pending post
+    /// </summary>
+    [HttpPost("{id}/cancel")]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(object), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CancelPostPublication(Guid id)
+    {
+        var result = await _mediator.Send(new CancelPostPublicationCommand(id));
+        if (!result)
+        {
+            return NotFound(ApiResponse<object>.ErrorResponse("Post not found or not pending confirmation."));
+        }
+
+        return Ok(ApiResponse<object>.SuccessResponse(new { }, "Post canceled successfully"));
     }
 }

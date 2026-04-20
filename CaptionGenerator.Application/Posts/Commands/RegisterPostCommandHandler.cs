@@ -15,7 +15,7 @@ public sealed class RegisterPostCommandHandler : IRequestHandler<RegisterPostCom
 
     public async Task<Guid> Handle(RegisterPostCommand request, CancellationToken cancellationToken)
     {
-        var post = Post.Create(request.caption, request.platform, request.imageUrl);
+        var post = Post.Create(request.caption, request.platform, request.imageUrl, request.scheduledForUtc);
         await _repository.AddAsync(post, cancellationToken);
         return post.Id;
     }

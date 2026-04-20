@@ -24,7 +24,7 @@ public class GetPostCommandHandler : IRequestHandler<GetPostQuery, List<PostDto>
 
         var posts = await query.ToListAsync(cancellationToken);
         return posts
-            .Select(p => new PostDto(p.Id, p.Caption, p.Platform.ToString(), p.Status.ToString(), p.ImageUrl, p.CreatedAtUtc))
+            .Select(p => new PostDto(p.Id, p.Caption, p.Platform.ToString(), p.Status.ToString(), p.ImageUrl, p.CreatedAtUtc, p.ScheduledForUtc))
             .ToList();
     }
 }

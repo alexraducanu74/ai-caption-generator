@@ -15,7 +15,7 @@ public class DeletePostCommandHandlerTests
     public async Task Handle_WithValidId_ShouldDeletePostAndReturnTrue()
     {
         var postId = Guid.NewGuid();
-        var post = Post.Create("Test Post", SocialPlatform.Facebook, "https://cdn.example.com/a.jpg");
+        var post = Post.Create("Test Post", SocialPlatform.Facebook, "https://cdn.example.com/a.jpg", DateTime.UtcNow.AddMinutes(30));
 
         _repositoryMock.Setup(r => r.FindAsync(postId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(post);
@@ -50,7 +50,7 @@ public class DeletePostCommandHandlerTests
     public async Task Handle_ShouldCallRepositoryFindAsyncWithCorrectId()
     {
         var postId = Guid.NewGuid();
-        var post = Post.Create("Test Post", SocialPlatform.Instagram, "https://cdn.example.com/b.jpg");
+        var post = Post.Create("Test Post", SocialPlatform.Instagram, "https://cdn.example.com/b.jpg", DateTime.UtcNow.AddMinutes(30));
 
         _repositoryMock.Setup(r => r.FindAsync(postId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(post);

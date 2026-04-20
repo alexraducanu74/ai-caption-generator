@@ -1,7 +1,6 @@
 ﻿@page "/"
 @inject AuthStateStore AuthStateStore
 @inject AuthApiClient AuthApiClient
-@inject NavigationManager NavigationManager
 
 <PageTitle>Home</PageTitle>
 
@@ -9,31 +8,64 @@
     <div class="home-page-content">
         @if (!_ready)
         {
-            <div class="surface-card home-surface-card">
-                <div class="card-body">Loading session...</div>
-            </div>
+            <p class="home-status">Loading session...</p>
         }
         else if (!AuthStateStore.IsAuthenticated)
         {
-            <div class="surface-card home-surface-card">
-                <div class="card-body home-auth-card">
-                    <p class="mb-3 home-auth-title">Generate captions quickly and manage all your posts in one place.</p>
-                    <p class="text-muted mb-4 home-auth-subtitle">Create an account or sign in to start generating and managing posts.</p>
-                    <div class="home-auth-actions">
-                        <a class="btn btn-primary" href="/login">Login</a>
-                        <a class="btn btn-outline-secondary" href="/register">Register</a>
+            <div class="home-hero">
+                <div class="home-copy">
+                    <p class="home-eyebrow">Caption workflow, simplified</p>
+                    <h1 class="home-title">
+                        Generate captions, schedule posts, and keep track of publishing in one clean space.
+                        <a class="home-inline-cta" href="/register">Try caption generator</a>
+                    </h1>
+                    <p class="home-subtitle">
+                        Keep your content organized from upload to publish decision, with a lighter, faster interface.
+                    </p>
+
+                    <div class="home-highlights">
+                        <span>AI captions</span>
+                        <span>Scheduled publishing</span>
+                        <span>Confirm / cancel flow</span>
+                    </div>
+                </div>
+
+                <div class="home-visual">
+                    <div class="home-visual-panel">
+                        <p class="home-visual-label">What you get</p>
+                        <ul class="home-visual-list">
+                            <li>Upload an image and generate a caption automatically</li>
+                            <li>Schedule the post for later without losing context</li>
+                            <li>Decide publish or cancel once the scheduled time arrives</li>
+                        </ul>
                     </div>
                 </div>
             </div>
         }
         else
         {
-            <div class="surface-card home-surface-card">
-                <div class="card-body home-auth-card">
+            <div class="home-hero">
+                <div class="home-copy">
+                    <p class="home-eyebrow">Welcome back</p>
+                    <h1 class="home-title">Your posting workspace is ready.</h1>
+                    <p class="home-subtitle">
+                        Open the dashboard and manage your posts with a cleaner workflow.
+                    </p>
+
                     <div class="home-authenticated-actions">
-                        <a class="btn btn-primary" href="/dashboard">Open dashboard</a>
-                        <a class="btn btn-outline-primary" href="/posts">Manage posts</a>
-                        <button class="btn btn-outline-danger" @onclick="LogoutAsync">Logout</button>
+                        <a class="btn btn-primary btn-lg" href="/dashboard">Open dashboard</a>
+                        <a class="btn btn-outline-primary btn-lg" href="/posts">Manage posts</a>
+                    </div>
+                </div>
+
+                <div class="home-visual">
+                    <div class="home-visual-panel">
+                        <p class="home-visual-label">Today</p>
+                        <ul class="home-visual-list">
+                            <li>Review published and pending posts from the dashboard</li>
+                            <li>Handle scheduled items with Yes / No confirmation</li>
+                            <li>Keep your social content pipeline tidy and fast</li>
+                        </ul>
                     </div>
                 </div>
             </div>
@@ -49,11 +81,5 @@
         await AuthStateStore.InitializeAsync();
         await AuthApiClient.ApplyAuthHeaderAsync();
         _ready = true;
-    }
-
-    private async Task LogoutAsync()
-    {
-        await AuthApiClient.LogoutAsync();
-        NavigationManager.NavigateTo("/login", true);
     }
 }

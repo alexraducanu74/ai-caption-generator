@@ -21,7 +21,7 @@ public class PostsControllerEdgeCaseTests : IClassFixture<IntegrationTestFactory
     {
         await AuthenticateAsync();
 
-        var request = new RegisterPostRequest(0, "https://cdn.example.com/valid.jpg");
+        var request = new RegisterPostRequest(0, "https://cdn.example.com/valid.jpg", DateTime.UtcNow.AddMinutes(15));
         var response = await _client.PostAsJsonAsync("/api/v1/posts", request);
         response.StatusCode.Should().Be(HttpStatusCode.Created);
     }
@@ -31,7 +31,7 @@ public class PostsControllerEdgeCaseTests : IClassFixture<IntegrationTestFactory
     {
         await AuthenticateAsync();
 
-        var request = new RegisterPostRequest(0, "");
+        var request = new RegisterPostRequest(0, "", DateTime.UtcNow.AddMinutes(15));
         var response = await _client.PostAsJsonAsync("/api/v1/posts", request);
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
@@ -50,8 +50,8 @@ public class PostsControllerEdgeCaseTests : IClassFixture<IntegrationTestFactory
     {
         await AuthenticateAsync();
 
-        var requestFb = new RegisterPostRequest(0, "https://cdn.example.com/fb.jpg");
-        var requestIg = new RegisterPostRequest(1, "https://cdn.example.com/ig.jpg");
+        var requestFb = new RegisterPostRequest(0, "https://cdn.example.com/fb.jpg", DateTime.UtcNow.AddMinutes(15));
+        var requestIg = new RegisterPostRequest(1, "https://cdn.example.com/ig.jpg", DateTime.UtcNow.AddMinutes(20));
 
         var responseFb = await _client.PostAsJsonAsync("/api/v1/posts", requestFb);
         var responseIg = await _client.PostAsJsonAsync("/api/v1/posts", requestIg);

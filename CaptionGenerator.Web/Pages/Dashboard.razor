@@ -1,5 +1,6 @@
 ﻿@page "/dashboard"
 @inject AuthStateStore AuthStateStore
+@inject AuthApiClient AuthApiClient
 @inject PostsApiClient PostsApiClient
 
 <PageTitle>Dashboard</PageTitle>
@@ -27,8 +28,8 @@ else if (!AuthStateStore.IsAuthenticated)
 }
 else
 {
-    <div class="row g-3 mb-3">
-        <div class="col-6 col-lg-4">
+    <div class="row row-cols-2 row-cols-lg-5 g-3 mb-3">
+        <div class="col">
             <div class="surface-card kpi-card">
                 <div class="card-body">
                     <p class="kpi-value">@_posts.Count</p>
@@ -36,7 +37,7 @@ else
                 </div>
             </div>
         </div>
-        <div class="col-6 col-lg-4">
+        <div class="col">
             <div class="surface-card kpi-card">
                 <div class="card-body">
                     <p class="kpi-value">@_todayCount</p>
@@ -44,7 +45,23 @@ else
                 </div>
             </div>
         </div>
-        <div class="col-6 col-lg-4">
+        <div class="col">
+            <div class="surface-card kpi-card">
+                <div class="card-body">
+                    <p class="kpi-value">@_scheduledTodayCount</p>
+                    <p class="kpi-label">Scheduled today</p>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="surface-card kpi-card">
+                <div class="card-body">
+                    <p class="kpi-value">@_statusCounts.GetValueOrDefault("PendingConfirmation", 0)</p>
+                    <p class="kpi-label">Pending confirmation</p>
+                </div>
+            </div>
+        </div>
+        <div class="col">
             <div class="surface-card kpi-card">
                 <div class="card-body">
                     <p class="kpi-value">@_statusCounts.GetValueOrDefault("Published", 0)</p>
@@ -114,6 +131,7 @@ else
     private readonly List<ActivityPoint> _weeklyActivity = [];
 
     private int _todayCount;
+    private int _scheduledTodayCount;
     private int _platformMax = 1;
     private int _weeklyMax = 1;
     private bool _ready;
@@ -121,6 +139,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         await AuthStateStore.InitializeAsync();
+        await AuthApiClient.ApplyAuthHeaderAsync();
 
         if (!AuthStateStore.IsAuthenticated)
         {
@@ -143,6 +162,7 @@ else
         BuildWeeklyActivity();
 
         _todayCount = _posts.Count(p => p.CreatedAtUtc.ToLocalTime().Date == DateTime.Today);
+        _scheduledTodayCount = _posts.Count(p => p.ScheduledForUtc.ToLocalTime().Date == DateTime.Today);
     }
 
     private void BuildPlatformCounts()

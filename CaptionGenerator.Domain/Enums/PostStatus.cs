@@ -3,5 +3,7 @@
 public enum PostStatus
 {
     Scheduled,
-    Published
+    Published,
+    PendingConfirmation,
+    Canceled
 }

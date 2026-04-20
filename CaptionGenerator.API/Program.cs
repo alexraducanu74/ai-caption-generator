@@ -109,6 +109,7 @@ builder.Services.AddHttpClient<ICaptionGenerationClient, PythonCaptionGeneration
     // First LLaVA request can take longer while the model downloads/loads.
     client.Timeout = TimeSpan.FromMinutes(10);
 });
+builder.Services.AddHostedService<ScheduledPostPublisherService>();
 
 var app = builder.Build();
 
@@ -146,9 +147,15 @@ using (var scope = app.Services.CreateScope())
                 ""Platform"" integer NOT NULL,
                 ""ImageUrl"" text NOT NULL,
                 ""CreatedAtUtc"" timestamp with time zone NOT NULL,
+                ""ScheduledForUtc"" timestamp with time zone NOT NULL DEFAULT NOW(),
                 ""Status"" integer NOT NULL,
                 CONSTRAINT ""PK_Posts"" PRIMARY KEY (""Id"")
             );
+        ");
+
+        await dbContext.Database.ExecuteSqlRawAsync(@"
+            ALTER TABLE ""Posts""
+            ADD COLUMN IF NOT EXISTS ""ScheduledForUtc"" timestamp with time zone NOT NULL DEFAULT NOW();
         ");
 
         logger.LogInformation("Database migrated successfully.");
