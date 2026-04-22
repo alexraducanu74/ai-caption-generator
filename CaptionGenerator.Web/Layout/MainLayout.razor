@@ -37,7 +37,7 @@
         </div>
     </nav>
 
-    <main class="app-main">
+    <main class="@MainContentClass">
         <div class="app-container">
             @Body
         </div>
@@ -47,11 +47,16 @@
 @code {
     private bool _navbarCollapsed = true;
 
+    private bool IsHomeRoute => string.IsNullOrEmpty(NavigationManager.ToBaseRelativePath(NavigationManager.Uri));
+
+    private string MainContentClass => IsHomeRoute ? "app-main app-main-home" : "app-main";
+
     private string NavbarCollapseClass => _navbarCollapsed ? string.Empty : "show";
 
     protected override async Task OnInitializedAsync()
     {
         AuthStateStore.Changed += OnAuthChanged;
+        NavigationManager.LocationChanged += OnLocationChanged;
         await AuthStateStore.InitializeAsync();
     }
 
@@ -61,6 +66,11 @@
     }
 
     private void OnAuthChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
         InvokeAsync(StateHasChanged);
     }
@@ -75,5 +85,6 @@
     public void Dispose()
     {
         AuthStateStore.Changed -= OnAuthChanged;
+        NavigationManager.LocationChanged -= OnLocationChanged;
     }
 }
