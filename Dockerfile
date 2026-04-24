@@ -16,10 +16,13 @@ COPY . .
 # Re-restore after full source copy to regenerate assets inside Linux container
 RUN dotnet restore "CaptionGenerator.API/CaptionGenerator.API.csproj"
 
+# Build once, then publish without rebuilding to avoid intermittent SDK segfaults in publish compile phase
+RUN dotnet build "CaptionGenerator.API/CaptionGenerator.API.csproj" -c Release --no-restore -m:1 /p:BuildInParallel=false /p:UseSharedCompilation=false
+
 # Publish
 FROM build AS publish
 WORKDIR "/src/CaptionGenerator.API"
-RUN dotnet publish "CaptionGenerator.API.csproj" -c Release -o /app/publish /p:UseAppHost=false --no-restore -m:1 /p:BuildInParallel=false /p:UseSharedCompilation=false
+RUN dotnet publish "CaptionGenerator.API.csproj" -c Release -o /app/publish /p:UseAppHost=false --no-restore --no-build -m:1 /p:BuildInParallel=false /p:UseSharedCompilation=false
 
 # Runtime
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final

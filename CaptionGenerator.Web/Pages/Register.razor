@@ -4,40 +4,68 @@
 
 <PageTitle>Register</PageTitle>
 
-<div class="page-header">
-    <h1 class="page-title">Create account</h1>
-    <p class="page-subtitle">Register to start generating and managing captions.</p>
-</div>
+<div class="auth-page">
+    <div class="auth-shell auth-shell-reverse">
+        <section class="auth-copy">
+            <p class="auth-eyebrow">Get started</p>
+            <h1 class="auth-title">Create your account in a few seconds.</h1>
+            <p class="auth-subtitle">Register to generate captions, plan posts, and manage publishing from anywhere.</p>
 
-<div class="surface-card">
-    <div class="card-body">
-        @if (!string.IsNullOrWhiteSpace(_message))
-        {
-            <div class="alert @(_isError ? "alert-danger" : "alert-success")" role="alert">@_message</div>
-        }
-
-        <EditForm Model="_form" OnValidSubmit="OnSubmitAsync">
-            <DataAnnotationsValidator />
-            <ValidationSummary />
-
-            <div class="mb-3">
-                <label class="form-label">Email</label>
-                <InputText class="form-control" @bind-Value="_form.Email" />
+            <div class="auth-benefits">
+                <div class="auth-benefit-item">
+                    <span class="auth-benefit-icon">✦</span>
+                    <div>
+                        <strong>Built for speed</strong>
+                        <p>Set up quickly and get straight to creating content.</p>
+                    </div>
+                </div>
+                <div class="auth-benefit-item">
+                    <span class="auth-benefit-icon">↗</span>
+                    <div>
+                        <strong>Ready to scale</strong>
+                        <p>Organize more posts without adding extra friction.</p>
+                    </div>
+                </div>
             </div>
+        </section>
 
-            <div class="mb-3">
-                <label class="form-label">Password</label>
-                <InputText class="form-control" type="password" @bind-Value="_form.Password" />
+        <section class="surface-card auth-card">
+            <div class="card-body auth-card-body">
+                <div class="auth-card-header">
+                    <p class="auth-card-kicker">Create account</p>
+                    <h2 class="auth-card-title">Register</h2>
+                    <p class="auth-card-text">Choose a password and confirm it before continuing.</p>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(_message))
+                {
+                    <div class="alert @(_isError ? "alert-danger" : "alert-success")" role="alert">@_message</div>
+                }
+
+                <EditForm Model="_form" OnValidSubmit="OnSubmitAsync">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <InputText class="form-control form-control-lg" @bind-Value="_form.Email" placeholder="name@example.com" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
+                        <InputText class="form-control form-control-lg" type="password" @bind-Value="_form.Password" placeholder="Create a password" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Confirm password</label>
+                        <InputText class="form-control form-control-lg" type="password" @bind-Value="_form.ConfirmPassword" placeholder="Repeat your password" />
+                    </div>
+
+                    <button class="btn btn-primary btn-lg auth-submit" type="submit" disabled="@_submitting">@(_submitting ? "Creating..." : "Register")</button>
+                    <a class="btn btn-link auth-switch-link" href="/login">Already have an account?</a>
+                </EditForm>
             </div>
-
-            <div class="mb-3">
-                <label class="form-label">Confirm password</label>
-                <InputText class="form-control" type="password" @bind-Value="_form.ConfirmPassword" />
-            </div>
-
-            <button class="btn btn-primary" type="submit" disabled="@_submitting">@(_submitting ? "Creating..." : "Register")</button>
-            <a class="btn btn-link" href="/login">Already have an account?</a>
-        </EditForm>
+        </section>
     </div>
 </div>
 

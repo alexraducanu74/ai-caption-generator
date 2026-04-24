@@ -33,10 +33,16 @@ else
 {
     <div class="row g-4">
         <div class="col-lg-5">
-            <div class="surface-card">
-                <div class="card-body">
-                    <h5 class="card-title">Create post</h5>
-                    <p class="text-muted small">Caption is generated automatically by the backend Python API.</p>
+            <div class="surface-card post-compose-card">
+                <div class="card-body post-compose-body">
+                    <div class="post-compose-header">
+                        <div>
+                            <p class="post-compose-kicker">New post</p>
+                            <h5 class="card-title mb-1">Create and schedule</h5>
+                            <p class="post-compose-subtitle mb-0">Upload an image, choose a platform, and pick a future publish time.</p>
+                        </div>
+                        <div class="post-compose-badge">AI captioning</div>
+                    </div>
 
                     @if (!string.IsNullOrWhiteSpace(_message))
                     {
@@ -47,7 +53,7 @@ else
                         <DataAnnotationsValidator />
                         <ValidationSummary />
 
-                        <div class="mb-3">
+                        <div class="mb-3 post-field">
                             <label class="form-label">Platform</label>
                             <InputSelect class="form-select" @bind-Value="_form.Platform">
                                 <option value="0">Facebook</option>
@@ -55,29 +61,95 @@ else
                             </InputSelect>
                         </div>
 
-                        <div class="mb-3">
-                            <label class="form-label">Publish schedule</label>
-                            <InputDate class="form-control" Type="InputDateType.DateTimeLocal" @bind-Value="_form.ScheduledForLocal" />
+                        <div class="mb-3 post-schedule-panel">
+                            <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap mb-3">
+                                <div>
+                                    <label class="form-label mb-1">Publish schedule</label>
+                                    <div class="post-schedule-meta">Choose a date and time, or use a quick preset.</div>
+                                </div>
+                                <span class="post-schedule-pill">@_form.ScheduledForLocal.ToString("ddd, MMM d • HH:mm")</span>
+                            </div>
+
+                            <div class="row g-3">
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label small text-muted mb-1">Date</label>
+                                    <InputDate class="form-control form-control-lg post-schedule-input" Type="InputDateType.Date" @bind-Value="_form.ScheduledDate" />
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label small text-muted mb-1">Time</label>
+                                    <div class="post-time-picker">
+                                        <button type="button" class="btn btn-outline-primary post-time-trigger" @onclick="ToggleTimePicker">
+                                            @_form.ScheduledHour.ToString("00"):@_form.ScheduledMinute.ToString("00")
+                                        </button>
+
+                                        @if (_showTimePicker)
+                                        {
+                                            <div class="post-time-popover" role="dialog" aria-label="Pick time">
+                                                <div class="post-time-selectors">
+                                                    <div class="post-time-column">
+                                                        <span class="post-time-column-label">Hour (24h)</span>
+                                                        <div class="post-time-scroll" role="listbox" aria-label="Hours">
+                                                            @foreach (var hour in HourOptions)
+                                                            {
+                                                                <button type="button" class="post-time-option @(hour == _form.ScheduledHour ? "active" : null)" @onclick="() => SetScheduledHour(hour)">@hour.ToString("00")</button>
+                                                            }
+                                                        </div>
+                                                    </div>
+                                                    <div class="post-time-column">
+                                                        <span class="post-time-column-label">Minute</span>
+                                                        <div class="post-time-scroll" role="listbox" aria-label="Minutes">
+                                                            @foreach (var minute in MinuteOptions)
+                                                            {
+                                                                <button type="button" class="post-time-option @(minute == _form.ScheduledMinute ? "active" : null)" @onclick="() => SetScheduledMinute(minute)">@minute.ToString("00")</button>
+                                                            }
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="post-time-actions">
+                                                    <button type="button" class="btn btn-sm btn-primary" @onclick="CloseTimePicker">Done</button>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="post-schedule-presets">
+                                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => SetSchedule(DateTime.Now.AddHours(1))">In 1 hour</button>
+                                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="SetTomorrowMorning">Tomorrow 9:00</button>
+                                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="SetTomorrowEvening">Tomorrow 18:00</button>
+                                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="SetNextWeekdayMorning">Next weekday 9:00</button>
+                            </div>
                         </div>
 
-                        <div class="mb-3">
+                        <div class="mb-3 post-field">
                             <label class="form-label">Image</label>
-                            <InputFile OnChange="OnImageSelected" accept=".jpg,.jpeg,.png,.webp" />
-                            @if (_selectedImage is not null)
-                            {
-                                <small class="d-block text-muted mt-1">Selected: @_selectedImage.Name</small>
-                            }
+                            <div class="post-upload-panel">
+                                <InputFile class="post-upload-input" OnChange="OnImageSelected" accept=".jpg,.jpeg,.png,.webp" />
+                                @if (_selectedImage is not null)
+                                {
+                                    <div class="post-upload-selected">
+                                        <span class="post-upload-selected-label">Selected image</span>
+                                        <strong>@_selectedImage.Name</strong>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="post-upload-empty">Choose a JPG, PNG, or WEBP file to generate and schedule a caption post.</div>
+                                }
+                            </div>
                         </div>
 
-                        <button class="btn btn-primary" type="submit" disabled="@_submitting">@(_submitting ? "Creating..." : "Upload + Create")</button>
+                        <button class="btn btn-primary btn-lg post-submit-btn" type="submit" disabled="@_submitting">@(_submitting ? "Creating..." : "Upload + Create")</button>
                     </EditForm>
                 </div>
             </div>
         </div>
 
         <div class="col-lg-7">
-            <div class="surface-card">
-                <div class="card-body">
+            <div class="surface-card post-feed-card">
+                <div class="card-body post-feed-body">
                     <div class="d-flex justify-content-between align-items-center mb-3 gap-2 flex-wrap">
                         <h5 class="card-title mb-0">Recent posts</h5>
                         <div class="d-flex align-items-center gap-2">
@@ -100,30 +172,32 @@ else
                             var isEditing = _editingPostId == post.Id;
                             var isBusy = _busyPostIds.Contains(post.Id);
 
-                            <div class="border rounded p-3 mb-3 bg-white">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <div class="d-flex align-items-center gap-2">
-                                        <strong>@post.Platform</strong>
-                                        <span class="badge @StatusBadgeClass(post.Status)">@post.Status</span>
+                            <div class="post-item">
+                                <div class="post-item-header">
+                                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                                        <strong class="post-item-platform">@post.Platform</strong>
+                                        <span class="badge @StatusBadgeClass(post.Status) post-item-status">@post.Status</span>
                                     </div>
-                                    <small class="text-muted">@post.CreatedAtUtc.ToLocalTime()</small>
+                                    <small class="post-item-timestamp">@post.CreatedAtUtc.ToLocalTime()</small>
                                 </div>
 
                                 @if (isEditing)
                                 {
-                                    <div class="mb-2">
-                                        <label class="form-label mb-1">Caption</label>
-                                        <InputTextArea class="form-control" @bind-Value="_editForm.Caption" rows="2" />
-                                        <small class="text-muted">@_editForm.Caption.Length / 280</small>
-                                    </div>
+                                    <div class="post-edit-panel">
+                                        <div class="mb-3">
+                                            <label class="form-label mb-1">Caption</label>
+                                            <InputTextArea class="form-control post-caption-input" @bind-Value="_editForm.Caption" rows="3" />
+                                            <small class="text-muted">@_editForm.Caption.Length / 280</small>
+                                        </div>
 
-                                    <div class="mb-2">
-                                        <label class="form-label mb-1">Replace image (optional)</label>
-                                        <InputFile OnChange="OnEditImageSelected" accept=".jpg,.jpeg,.png,.webp" />
-                                        @if (_editSelectedImage is not null)
-                                        {
-                                            <small class="d-block text-muted mt-1">Selected: @_editSelectedImage.Name</small>
-                                        }
+                                        <div class="mb-3">
+                                            <label class="form-label mb-1">Replace image (optional)</label>
+                                            <InputFile class="post-upload-input" OnChange="OnEditImageSelected" accept=".jpg,.jpeg,.png,.webp" />
+                                            @if (_editSelectedImage is not null)
+                                            {
+                                                <small class="d-block text-muted mt-1">Selected: @_editSelectedImage.Name</small>
+                                            }
+                                        </div>
                                     </div>
 
                                     <div class="d-flex flex-wrap gap-2">
@@ -137,9 +211,11 @@ else
                                 }
                                 else
                                 {
-                                    <p class="mb-1">@post.Caption</p>
-                                    <small class="d-block text-muted mb-2">Scheduled: @post.ScheduledForUtc.ToLocalTime()</small>
-                                    <img src="@post.ImageUrl" alt="post image" class="img-fluid rounded mb-2" style="max-height: 180px; object-fit: cover;" />
+                                    <div class="post-item-body">
+                                        <p class="post-caption mb-1">@post.Caption</p>
+                                        <div class="post-schedule-copy">Scheduled for <strong>@post.ScheduledForUtc.ToLocalTime()</strong></div>
+                                        <img src="@post.ImageUrl" alt="post image" class="post-item-image img-fluid mb-2" />
+                                    </div>
 
                                     @if (post.Status == "PendingConfirmation")
                                     {
@@ -181,11 +257,14 @@ else
     private readonly EditPostForm _editForm = new();
     private readonly List<PostResponse> _posts = [];
     private readonly HashSet<Guid> _busyPostIds = [];
+    private static readonly int[] HourOptions = Enumerable.Range(0, 24).ToArray();
+    private static readonly int[] MinuteOptions = Enumerable.Range(0, 12).Select(i => i * 5).ToArray();
     private IBrowserFile? _selectedImage;
     private IBrowserFile? _editSelectedImage;
     private Guid? _editingPostId;
     private bool _ready;
     private bool _submitting;
+    private bool _showTimePicker;
     private bool _isError;
     private string? _message;
     private CreatedAtSortOrder _createdAtSortOrder = CreatedAtSortOrder.Descending;
@@ -453,7 +532,7 @@ else
             if (createResult.Success)
             {
                 _form.Platform = 0;
-                _form.ScheduledForLocal = DateTime.Now.AddMinutes(10);
+                _form.ResetSchedule(DateTime.Now.AddMinutes(10));
                 _selectedImage = null;
                 await LoadPostsAsync();
             }
@@ -475,7 +554,34 @@ else
         public int Platform { get; set; }
 
         [Required]
-        public DateTime ScheduledForLocal { get; set; } = DateTime.Now.AddMinutes(10);
+        public DateOnly ScheduledDate { get; set; } = DateOnly.FromDateTime(DateTime.Now.AddMinutes(10));
+
+        [Required]
+        [Range(0, 23)]
+        public int ScheduledHour { get; set; } = DateTime.Now.AddMinutes(10).Hour;
+
+        [Required]
+        [Range(0, 55)]
+        public int ScheduledMinute { get; set; } = RoundMinuteToFive(DateTime.Now.AddMinutes(10).Minute);
+
+        public DateTime ScheduledForLocal => ScheduledDate.ToDateTime(new TimeOnly(ScheduledHour, ScheduledMinute), DateTimeKind.Local);
+
+        public void ResetSchedule(DateTime localDateTime)
+        {
+            var value = localDateTime.Kind == DateTimeKind.Unspecified
+                ? DateTime.SpecifyKind(localDateTime, DateTimeKind.Local)
+                : localDateTime.ToLocalTime();
+
+            ScheduledDate = DateOnly.FromDateTime(value);
+            ScheduledHour = value.Hour;
+            ScheduledMinute = RoundMinuteToFive(value.Minute);
+        }
+
+        private static int RoundMinuteToFive(int minute)
+        {
+            var rounded = (int)Math.Round(minute / 5.0) * 5;
+            return rounded >= 60 ? 55 : rounded;
+        }
     }
 
     private sealed class EditPostForm
@@ -504,5 +610,35 @@ else
     {
         _refreshCts?.Cancel();
         _refreshCts?.Dispose();
+    }
+
+    private void SetTomorrowMorning() => SetSchedule(DateTime.Now.Date.AddDays(1).AddHours(9));
+
+    private void SetTomorrowEvening() => SetSchedule(DateTime.Now.Date.AddDays(1).AddHours(18));
+
+    private void ToggleTimePicker() => _showTimePicker = !_showTimePicker;
+
+    private void CloseTimePicker() => _showTimePicker = false;
+
+    private void SetScheduledHour(int hour) => _form.ScheduledHour = hour;
+
+    private void SetScheduledMinute(int minute) => _form.ScheduledMinute = minute;
+
+    private void SetNextWeekdayMorning()
+    {
+        var day = DateTime.Now.Date.AddDays(1);
+
+        while (day.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
+        {
+            day = day.AddDays(1);
+        }
+
+        SetSchedule(day.AddHours(9));
+    }
+
+    private void SetSchedule(DateTime value)
+    {
+        _form.ResetSchedule(value);
+        _showTimePicker = false;
     }
 }

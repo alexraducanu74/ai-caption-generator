@@ -5,35 +5,63 @@
 
 <PageTitle>Login</PageTitle>
 
-<div class="page-header">
-    <h1 class="page-title">Login</h1>
-    <p class="page-subtitle">Sign in to create and manage your caption posts.</p>
-</div>
+<div class="auth-page">
+    <div class="auth-shell">
+        <section class="auth-copy">
+            <p class="auth-eyebrow">Welcome back</p>
+            <h1 class="auth-title">Sign in to manage your caption workflow.</h1>
+            <p class="auth-subtitle">Track drafts, schedule posts, and confirm publishing decisions from one clean dashboard.</p>
 
-<div class="surface-card">
-    <div class="card-body">
-        @if (!string.IsNullOrWhiteSpace(_message))
-        {
-            <div class="alert @(_isError ? "alert-danger" : "alert-success")" role="alert">@_message</div>
-        }
-
-        <EditForm Model="_form" OnValidSubmit="OnSubmitAsync">
-            <DataAnnotationsValidator />
-            <ValidationSummary />
-
-            <div class="mb-3">
-                <label class="form-label">Email</label>
-                <InputText class="form-control" @bind-Value="_form.Email" />
+            <div class="auth-benefits">
+                <div class="auth-benefit-item">
+                    <span class="auth-benefit-icon">✓</span>
+                    <div>
+                        <strong>Fast access</strong>
+                        <p>Jump straight back into your posts and publishing queue.</p>
+                    </div>
+                </div>
+                <div class="auth-benefit-item">
+                    <span class="auth-benefit-icon">⚡</span>
+                    <div>
+                        <strong>Simple workflow</strong>
+                        <p>Keep your caption generation and post management in sync.</p>
+                    </div>
+                </div>
             </div>
+        </section>
 
-            <div class="mb-3">
-                <label class="form-label">Password</label>
-                <InputText class="form-control" type="password" @bind-Value="_form.Password" />
+        <section class="surface-card auth-card">
+            <div class="card-body auth-card-body">
+                <div class="auth-card-header">
+                    <p class="auth-card-kicker">Account access</p>
+                    <h2 class="auth-card-title">Login</h2>
+                    <p class="auth-card-text">Use your email and password to continue.</p>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(_message))
+                {
+                    <div class="alert @(_isError ? "alert-danger" : "alert-success")" role="alert">@_message</div>
+                }
+
+                <EditForm Model="_form" OnValidSubmit="OnSubmitAsync">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <InputText class="form-control form-control-lg" @bind-Value="_form.Email" placeholder="name@example.com" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
+                        <InputText class="form-control form-control-lg" type="password" @bind-Value="_form.Password" placeholder="Enter your password" />
+                    </div>
+
+                    <button class="btn btn-primary btn-lg auth-submit" type="submit" disabled="@_submitting">@(_submitting ? "Signing in..." : "Login")</button>
+                    <a class="btn btn-link auth-switch-link" href="/register">Need an account?</a>
+                </EditForm>
             </div>
-
-            <button class="btn btn-primary" type="submit" disabled="@_submitting">@(_submitting ? "Signing in..." : "Login")</button>
-            <a class="btn btn-link" href="/register">Need an account?</a>
-        </EditForm>
+        </section>
     </div>
 </div>
 
