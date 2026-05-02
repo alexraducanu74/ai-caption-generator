@@ -67,8 +67,8 @@ jobs:
       - name: Build and push AI Service image
         uses: docker/build-push-action@v4
         with:
-          context: caption-service
-          file: ./caption-service/Dockerfile
+          context: .
+          file: ./Dockerfile.ai
           push: true
           tags: |
             ${{ secrets.AZURE_REGISTRY_URL }}/caption-service:latest
@@ -222,4 +222,3 @@ jobs:
           webhook_url: ${{ secrets.SLACK_WEBHOOK }}
           fields: repo,message,commit,author,action,eventName,ref,workflow
         if: secrets.SLACK_WEBHOOK != ''
-

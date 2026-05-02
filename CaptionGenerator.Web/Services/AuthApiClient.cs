@@ -18,31 +18,61 @@ public class AuthApiClient
 
     public async Task<(bool Success, string Message)> RegisterAsync(RegisterRequest request)
     {
-        var response = await _httpClient.PostAsJsonAsync("api/v1/auth/register", request);
-        var apiResponse = await response.Content.ReadFromJsonAsync<ApiResponse<object>>();
-
-        if (!response.IsSuccessStatusCode)
+        try
         {
-            return (false, apiResponse?.Message ?? "Registration failed.");
-        }
+            var response = await _httpClient.PostAsJsonAsync("api/v1/auth/register", request);
+            var apiResponse = await response.Content.ReadFromJsonAsync<ApiResponse<object>>();
 
-        return (true, apiResponse?.Message ?? "Registered successfully.");
+            if (!response.IsSuccessStatusCode)
+            {
+                return (false, apiResponse?.Message ?? "Registration failed.");
+            }
+
+            return (true, apiResponse?.Message ?? "Registered successfully.");
+        }
+        catch (HttpRequestException)
+        {
+            return (false, "Unable to reach the authentication service right now. Please try again in a moment.");
+        }
+        catch (NotSupportedException)
+        {
+            return (false, "The authentication service returned an unexpected response.");
+        }
+        catch
+        {
+            return (false, "The authentication service returned an invalid response.");
+        }
     }
 
     public async Task<(bool Success, string Message)> LoginAsync(LoginRequest request)
     {
-        var response = await _httpClient.PostAsJsonAsync("api/v1/auth/login", request);
-        var apiResponse = await response.Content.ReadFromJsonAsync<ApiResponse<AuthResponse>>();
-
-        if (!response.IsSuccessStatusCode || apiResponse?.Data is null)
+        try
         {
-            return (false, apiResponse?.Message ?? "Login failed.");
+            var response = await _httpClient.PostAsJsonAsync("api/v1/auth/login", request);
+            var apiResponse = await response.Content.ReadFromJsonAsync<ApiResponse<AuthResponse>>();
+
+            if (!response.IsSuccessStatusCode || apiResponse?.Data is null)
+            {
+                return (false, apiResponse?.Message ?? "Login failed.");
+            }
+
+            var session = new AuthSession(apiResponse.Data.Token, apiResponse.Data.Email, apiResponse.Data.ExpiresAtUtc);
+            await _authStateStore.SetSessionAsync(session);
+
+            return (true, apiResponse.Message ?? "Login successful.");
         }
-
-        var session = new AuthSession(apiResponse.Data.Token, apiResponse.Data.Email, apiResponse.Data.ExpiresAtUtc);
-        await _authStateStore.SetSessionAsync(session);
-
-        return (true, apiResponse.Message ?? "Login successful.");
+        catch (HttpRequestException)
+        {
+            return (false, "Unable to reach the authentication service right now. Please try again in a moment.");
+        }
+        catch (NotSupportedException)
+        {
+            return (false, "The authentication service returned an unexpected response.");
+        }
+        catch
+        {
+            return (false, "The authentication service returned an invalid response.");
+        }
     }
 
     public async Task LogoutAsync()
@@ -61,4 +91,3 @@ public class AuthApiClient
             : new AuthenticationHeaderValue("Bearer", token);
     }
 }
-

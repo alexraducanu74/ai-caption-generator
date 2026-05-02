@@ -81,16 +81,26 @@
         _isError = false;
         _message = null;
 
-        var result = await AuthApiClient.RegisterAsync(new RegisterRequest(_form.Email, _form.Password));
-        _submitting = false;
-
-        _message = result.Message;
-        _isError = !result.Success;
-
-        if (result.Success)
+        try
         {
-            await Task.Delay(600);
-            NavigationManager.NavigateTo("/login");
+            var result = await AuthApiClient.RegisterAsync(new RegisterRequest(_form.Email, _form.Password));
+            _message = result.Message;
+            _isError = !result.Success;
+
+            if (result.Success)
+            {
+                await Task.Delay(600);
+                NavigationManager.NavigateTo("/login");
+            }
+        }
+        catch (Exception)
+        {
+            _isError = true;
+            _message = "Something went wrong while creating your account. Please try again.";
+        }
+        finally
+        {
+            _submitting = false;
         }
     }
 

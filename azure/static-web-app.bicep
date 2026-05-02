@@ -40,4 +40,3 @@ resource customDomain 'Microsoft.Web/staticSites/customDomains@2023-01-01' = {
 
 output deploymentToken string = staticWebApp.listSecrets().properties[0].value
 output defaultHostname string = staticWebApp.properties.defaultHostname
-
