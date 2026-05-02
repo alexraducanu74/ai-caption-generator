@@ -1,38 +1,19 @@
-﻿FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
-WORKDIR /src
+﻿# This file is deprecated. Please use the service-specific Dockerfiles:
+# - Dockerfile.api       - For .NET API backend
+# - caption-service/Dockerfile - For Python AI service  
+# - Dockerfile.web       - For Blazor WASM frontend
+#
+# These optimized Dockerfiles provide:
+# - Better layer caching
+# - Smaller image sizes
+# - Proper health checks
+# - Production-ready configurations
+#
+# For local development, use docker-compose:
+#   docker-compose up -d
+#
+# For cloud deployment, see azure/Deploy-Azure.ps1
 
-# Copy project files
-COPY ["CaptionGenerator.API/CaptionGenerator.API.csproj", "CaptionGenerator.API/"]
-COPY ["CaptionGenerator.Application/CaptionGenerator.Application.csproj", "CaptionGenerator.Application/"]
-COPY ["CaptionGenerator.Domain/CaptionGenerator.Domain.csproj", "CaptionGenerator.Domain/"]
-COPY ["CaptionGenerator.Infrastructure/CaptionGenerator.Infrastructure.csproj", "CaptionGenerator.Infrastructure/"]
-
-# Restore dependencies for layer caching (project-only copy)
-RUN dotnet restore "CaptionGenerator.API/CaptionGenerator.API.csproj"
-
-# Copy source code (includes migrations)
-COPY . .
-
-# Re-restore after full source copy to regenerate assets inside Linux container
-RUN dotnet restore "CaptionGenerator.API/CaptionGenerator.API.csproj"
-
-# Build once, then publish without rebuilding to avoid intermittent SDK segfaults in publish compile phase
-RUN dotnet build "CaptionGenerator.API/CaptionGenerator.API.csproj" -c Release --no-restore -m:1 /p:BuildInParallel=false /p:UseSharedCompilation=false
-
-# Publish
-FROM build AS publish
-WORKDIR "/src/CaptionGenerator.API"
-RUN dotnet publish "CaptionGenerator.API.csproj" -c Release -o /app/publish /p:UseAppHost=false --no-restore --no-build -m:1 /p:BuildInParallel=false /p:UseSharedCompilation=false
-
-# Runtime
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
-WORKDIR /app
-COPY --from=publish /app/publish .
-
-# Ensure upload directory exists inside the container
-RUN mkdir -p /app/wwwroot/uploads/images
-
-EXPOSE 5000 5001
-
-ENV ASPNETCORE_URLS=http://+:5000
-ENTRYPOINT ["dotnet", "CaptionGenerator.API.dll"]
+# This is a placeholder - use Dockerfile.api instead
+FROM scratch
+RUN echo "Use Dockerfile.api instead" && exit 1

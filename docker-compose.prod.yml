@@ -1,0 +1,72 @@
+﻿# Production Docker Compose Override
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up
+
+version: '3.9'
+
+services:
+  postgres:
+    # Use external Azure SQL Database in production
+    command: echo "Using external Azure Database for PostgreSQL"
+    profiles:
+      - dev-only
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+      args:
+        BUILD_CONFIGURATION: Release
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:5000
+      # These should come from environment or secrets
+      ConnectionStrings__DefaultConnection: "Host=${DB_SERVER};Port=5432;Database=caption_generator;Username=${DB_USER};Password=${DB_PASSWORD};SslMode=Require;"
+      Jwt__Key: ${JWT_KEY}
+      CaptionGeneration__BaseUrl: http://caption-service:8000
+      AzureBlobStorage__ConnectionString: ${AZURE_STORAGE_CONNECTION_STRING}
+      AzureBlobStorage__ContainerName: uploads
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+
+  caption-service:
+    environment:
+      PYTHONUNBUFFERED: "1"
+      HF_HOME: /app/.cache/huggingface
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+
+  web:
+    environment:
+      API_BASE_URL: https://${API_HOSTNAME}/api
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # Health check aggregator (optional)
+  healthcheck:
+    image: alpine:3.18
+    command: /bin/sh -c "while true; do wget -q -O - http://api:5000/health && wget -q -O - http://caption-service:8000/health && echo 'All services healthy' || echo 'Service unhealthy'; sleep 30; done"
+    networks:
+      - caption-network
+    restart: always
+

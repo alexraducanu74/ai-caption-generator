@@ -1,77 +1,111 @@
 services:
+  # PostgreSQL Database - Local Development
   postgres:
-    image: postgres:latest
-    volumes:
-      - postgres_data:/var/lib/postgresql
+    image: postgres:16-alpine
     container_name: caption-generator-db
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: caption_generator
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-caption_generator}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5433:5432"
+      - "${DB_PORT:-5433}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
       - caption-network
+    restart: unless-stopped
 
+  # Python AI Service (LLaVA Caption Generator)
   caption-service:
     build:
-      context: ./caption-service
+      context: caption-service
       dockerfile: Dockerfile
     container_name: caption-generator-caption
     environment:
-      HF_HOME: /root/.cache/huggingface
+      MODEL_NAME: ${MODEL_NAME:-llava-hf/llava-1.5-7b-hf}
+      CAPTION_MAX_LENGTH: ${CAPTION_MAX_LENGTH:-280}
+      HF_HOME: /app/.cache/huggingface
+      PYTHONUNBUFFERED: "1"
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
     volumes:
-      - hf_cache:/root/.cache/huggingface
+      - hf_cache:/app/.cache/huggingface
     ports:
-      - "8000:8000"
+      - "${AI_PORT:-8000}:8000"
     healthcheck:
-      test: ["CMD", "python", "-c", "import json,urllib.request; data=json.loads(urllib.request.urlopen('http://localhost:8000/health', timeout=25).read().decode()); status=data.get('status'); err=data.get('lastError'); raise SystemExit(0 if status in ('starting','ready') and not err else 1)"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
       interval: 30s
-      timeout: 30s
-      retries: 20
-      start_period: 180s
+      timeout: 10s
+      retries: 3
+      start_period: 300s
     networks:
       - caption-network
     gpus: all
+    restart: unless-stopped
 
+  # .NET API Backend
   api:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.api
     container_name: caption-generator-api
     depends_on:
       postgres:
         condition: service_healthy
       caption-service:
-        condition: service_healthy
+        condition: service_started
     environment:
-      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=caption_generator;Username=postgres;Password=postgres;"
-      ASPNETCORE_ENVIRONMENT: Development
-      CaptionGeneration__BaseUrl: "http://caption-service:8000"
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ASPNETCORE_URLS: http://+:5000
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${DB_NAME:-caption_generator};Username=${DB_USER:-postgres};Password=${DB_PASSWORD:-postgres};"
+      Jwt__Key: ${JWT_KEY:-this-is-a-dev-only-secret-key-change-me-12345}
+      Jwt__Issuer: ${JWT_ISSUER:-CaptionGenerator.API}
+      Jwt__Audience: ${JWT_AUDIENCE:-CaptionGenerator.Web}
+      CaptionGeneration__BaseUrl: ${CAPTION_SERVICE_URL:-http://caption-service:8000}
+      # Azure Blob Storage (optional - for cloud deployment)
+      #AzureBlobStorage__ConnectionString: ${AZURE_BLOB_CONNECTION_STRING}
+      #AzureBlobStorage__ContainerName: ${AZURE_BLOB_CONTAINER:-uploads}
     ports:
-      - "5000:5000"
-      - "5001:5001"
+      - "${API_PORT:-5000}:5000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:5000/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
     networks:
       - caption-network
+    restart: unless-stopped
 
+  # Blazor WASM Frontend
   web:
     build:
       context: .
       dockerfile: Dockerfile.web
+      args:
+        API_BASE_URL: ${API_BASE_URL:-http://localhost:5000}
     container_name: caption-generator-web
     depends_on:
       - api
+    environment:
+      REACT_APP_API_BASE_URL: ${API_BASE_URL:-http://localhost:5000}
     ports:
-      - "3000:80"
+      - "${WEB_PORT:-3000}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
     networks:
       - caption-network
+    restart: unless-stopped
 
 networks:
   caption-network:
@@ -79,4 +113,6 @@ networks:
 
 volumes:
   postgres_data:
+    driver: local
   hf_cache:
+    driver: local

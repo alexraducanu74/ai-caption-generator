@@ -1,0 +1,31 @@
+﻿# Stage 1: Build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+# Copy project files
+COPY ["CaptionGenerator.API/CaptionGenerator.API.csproj", "CaptionGenerator.API/"]
+COPY ["CaptionGenerator.Application/CaptionGenerator.Application.csproj", "CaptionGenerator.Application/"]
+COPY ["CaptionGenerator.Domain/CaptionGenerator.Domain.csproj", "CaptionGenerator.Domain/"]
+COPY ["CaptionGenerator.Infrastructure/CaptionGenerator.Infrastructure.csproj", "CaptionGenerator.Infrastructure/"]
+# Restore dependencies
+RUN dotnet restore "CaptionGenerator.API/CaptionGenerator.API.csproj"
+# Copy source code
+COPY . .
+# Build
+RUN dotnet build "CaptionGenerator.API/CaptionGenerator.API.csproj" -c Release --no-restore -m:1 /p:BuildInParallel=false
+# Stage 2: Publish
+FROM build AS publish
+WORKDIR "/src/CaptionGenerator.API"
+RUN dotnet publish "CaptionGenerator.API.csproj" -c Release -o /app/publish /p:UseAppHost=false --no-restore --no-build
+# Stage 3: Runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+WORKDIR /app
+# Install curl for health checks
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+# Create temporary uploads directory (for local development)  
+RUN mkdir -p /app/wwwroot/uploads/images && chmod 777 /app/wwwroot/uploads
+COPY --from=publish /app/publish .
+EXPOSE 5000 5001
+ENV ASPNETCORE_URLS=http://+:5000
+ENV ASPNETCORE_ENVIRONMENT=Production
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD curl -f http://localhost:5000/health || exit 1
+ENTRYPOINT ["dotnet", "CaptionGenerator.API.dll"]

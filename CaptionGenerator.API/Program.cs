@@ -106,9 +106,12 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddHttpClient<ICaptionGenerationClient, PythonCaptionGenerationClient>(client =>
 {
-    // First LLaVA request can take longer while the model downloads/loads.
-    client.Timeout = TimeSpan.FromMinutes(10);
-});
+    // First LLaVA request can take longer while the model downloads/loads (~2-3 minutes).
+    // Subsequent requests are faster (10-30 seconds).
+    client.Timeout = TimeSpan.FromMinutes(15);
+})
+.ConfigureHttpClient(client => client.DefaultRequestVersion = System.Net.HttpVersion.Version20);
+
 builder.Services.AddHostedService<ScheduledPostPublisherService>();
 
 var app = builder.Build();

@@ -76,6 +76,19 @@ def ensure_model_loaded() -> tuple[Any, Any]:
             _model_device = "cuda:0" if use_cuda else "cpu"
             dtype = torch.float16 if use_cuda else torch.float32
 
+            if use_cuda:
+                log.info(
+                    "CUDA detected: %s | device_count=%s | torch_cuda=%s",
+                    torch.cuda.get_device_name(0),
+                    torch.cuda.device_count(),
+                    torch.version.cuda,
+                )
+            else:
+                log.warning(
+                    "CUDA not available in container; falling back to CPU. "
+                    "Check docker compose GPU passthrough and NVIDIA runtime support."
+                )
+
             log.info(
                 "Loading vision-language model '%s' on %s...",
                 MODEL_NAME,
