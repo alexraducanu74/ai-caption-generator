@@ -6,3 +6,11 @@ obj/
 .vs/
 *.log
 sonar-project.properties
+
+# Local secrets and generated output
+azure/.secrets/
+api-containerapp.json
+coverage-report/
+**/TestResults/
+__pycache__/
+*.bak

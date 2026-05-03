@@ -1,0 +1,102 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "containerName": {
+      "type": "string",
+      "defaultValue": "caption-service-gpu"
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "westus"
+    },
+    "image": {
+      "type": "string",
+      "defaultValue": "captiongeneratoreqh42kmb646vq.azurecr.io/caption-service:latest"
+    },
+    "acrServer": {
+      "type": "string",
+      "defaultValue": "captiongeneratoreqh42kmb646vq.azurecr.io"
+    },
+    "acrUsername": {
+      "type": "string",
+      "defaultValue": "captiongeneratoreqh42kmb646vq"
+    },
+    "acrPassword": {
+      "type": "securestring"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.ContainerInstance/containerGroups",
+      "apiVersion": "2023-05-01",
+      "name": "[parameters('containerName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "containers": [
+          {
+            "name": "caption-service",
+            "properties": {
+              "image": "[parameters('image')]",
+              "resources": {
+                "requests": {
+                  "cpu": 4,
+                  "memoryInGb": 16,
+                  "gpu": {
+                    "count": 1,
+                    "sku": "V100"
+                  }
+                }
+              },
+              "ports": [
+                {
+                  "port": 8000,
+                  "protocol": "TCP"
+                }
+              ],
+              "environmentVariables": [
+                {
+                  "name": "MODEL_NAME",
+                  "value": "llava-hf/llava-1.5-7b-hf"
+                },
+                {
+                  "name": "CAPTION_MAX_LENGTH",
+                  "value": "280"
+                }
+              ]
+            }
+          }
+        ],
+        "osType": "Linux",
+        "restartPolicy": "Always",
+        "ipAddress": {
+          "type": "Public",
+          "ports": [
+            {
+              "port": 8000,
+              "protocol": "TCP"
+            }
+          ],
+          "dnsNameLabel": "[concat('caption-gpu-', uniqueString(resourceGroup().id))]"
+        },
+        "imageRegistryCredentials": [
+          {
+            "server": "[parameters('acrServer')]",
+            "username": "[parameters('acrUsername')]",
+            "password": "[parameters('acrPassword')]"
+          }
+        ]
+      }
+    }
+  ],
+  "outputs": {
+    "containerFQDN": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.ContainerInstance/containerGroups', parameters('containerName'))).ipAddress.fqdn]"
+    },
+    "containerIP": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.ContainerInstance/containerGroups', parameters('containerName'))).ipAddress.ip]"
+    }
+  }
+}

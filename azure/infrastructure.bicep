@@ -119,7 +119,7 @@ resource sqlFirewallRule 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRule
   name: 'AllowAzureServices'
   properties: {
     startIpAddress: '0.0.0.0'
-    endIpAddress: '255.255.255.255'
+    endIpAddress: '0.0.0.0'
   }
 }
 
