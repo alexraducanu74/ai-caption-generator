@@ -1,4 +1,4 @@
-﻿name: CI/CD Pipeline
+name: CI/CD Pipeline
 
 on:
   push:
@@ -37,25 +37,9 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Install SonarCloud scanner
-        run: dotnet tool install --global dotnet-sonarscanner
-
-      - name: Cache SonarCloud packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.sonar/cache
-          key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
-
       - name: Restore dependencies
         run: dotnet restore
 
-      - name: Begin SonarCloud Analysis
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: |
-          dotnet sonarscanner begin /k:"alexraducanu74_dotnet-project" /o:"alexraducanu74" /d:sonar.projectBaseDir="${{ github.workspace }}" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.opencover.reportsPaths="**/TestResults/*.opencover.xml" /d:sonar.coverage.exclusions="**/Tests/**,**/Migrations/**,**/Program.cs" /d:sonar.cpd.exclusions="**/Tests/**"
       - name: Build
         run: dotnet build --no-restore --configuration Release --no-incremental
 
@@ -66,12 +50,6 @@ jobs:
         run: dotnet test CaptionGenerator.Tests.Integration/CaptionGenerator.Tests.Integration.csproj --no-build --configuration Release --verbosity normal --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:CoverletOutput=./TestResults/integration-coverage.opencover.xml /p:ExcludeByAttribute="Obsolete"
         env:
           ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=caption_generator;Username=postgres;Password=postgres;"
-
-      - name: End SonarCloud Analysis
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
@@ -123,24 +101,9 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: ./Dockerfile.api
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  deploy:
-    runs-on: ubuntu-latest
-    needs: docker-build-push
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Deploy to Cloud
-        run: |
-          echo "Deployment to cloud would happen here"
-          echo "This is a placeholder for Azure Container Apps, AWS ECS, or GCP Cloud Run deployment"
-        env:
-          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
-          DEPLOY_SERVER: ${{ secrets.DEPLOY_SERVER }}
