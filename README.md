@@ -49,6 +49,8 @@ docker compose up --build
 | http://localhost:5000/health | API health |
 | http://localhost:8000/health | Caption service health |
 
+Helper scripts (local setup, GPU VM deployment, diagnostics) are in `scripts/` and should be run from the repository root, e.g. `.\scripts\local-dev-setup.ps1`.
+
 The first start downloads the model (~14 GB) into a Docker volume, so it takes a few minutes before the caption service reports `ready`. Configuration defaults are in `.env`. They are development-only values.
 
 ## Tests
@@ -72,6 +74,6 @@ The app was deployed to **Azure Container Apps** (West Europe) in May 2026. All 
 
 `azure/Deploy-Azure.ps1` (or `azure/deploy.sh`) provisions the resources, builds and pushes the images, and deploys them.
 
-**GPU note:** the student subscription had zero GPU quota (Azure Container Instances rejected V100 requests with `ContainerGroupQuotaReached`). For demos, the caption service ran on a local GPU and the Azure-hosted API was pointed at it through a tunnel (`update-azure-to-local.ps1`). Scripts for running it on a GPU VM instead are in `azure-deploy-gpu-vm*.ps1`.
+**GPU note:** the student subscription had zero GPU quota (Azure Container Instances rejected V100 requests with `ContainerGroupQuotaReached`). For demos, the caption service ran on a local GPU and the Azure-hosted API was pointed at it through a tunnel (`scripts/update-azure-to-local.ps1`). Scripts for running it on a GPU VM instead are in `scripts/azure-deploy-gpu-vm*.ps1`.
 
 The deployment has since been shut down.

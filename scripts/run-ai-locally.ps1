@@ -109,7 +109,7 @@ if (-not $SkipNgrok) {
         Write-Host "Public URL: $publicUrl" -ForegroundColor Cyan
         Write-Host ""
         Write-Host "Update Azure with:" -ForegroundColor Yellow
-        Write-Host "  .\update-azure-to-local.ps1"
+        Write-Host "  .\scripts\update-azure-to-local.ps1"
         Write-Host ""
         Write-Host "Ngrok dashboard: http://localhost:4040"
 

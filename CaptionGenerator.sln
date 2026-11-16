@@ -26,7 +26,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docker", "Docker", "{E3F4A5B6-C7D8-49E0-F1A2-B3C4D5E6F7A8}"
 	ProjectSection(SolutionItems) = preProject
 		docker-compose.yml = docker-compose.yml
-		Dockerfile = Dockerfile
+		Dockerfile.api = Dockerfile.api
 		Dockerfile.web = Dockerfile.web
 		nginx.conf = nginx.conf
 	EndProjectSection
